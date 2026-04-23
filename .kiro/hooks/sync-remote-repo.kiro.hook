@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Sync Remote Repo on File Change",
+  "description": "After any file is edited, automatically stages, commits, and pushes changes to the remote GitHub repository to keep it current.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "git add -A && git commit -m \"Auto-sync: update files\" --allow-empty && git push"
+  }
+}

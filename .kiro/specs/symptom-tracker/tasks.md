@@ -2,7 +2,7 @@
 
 ## Milestone M0 — Repository and environments
 
-- [ ] 1. Create monorepo with `apps/worker-api`, `apps/dashboard`, `packages/shared` (domain types, config, utils)
+- [-] 1. Create monorepo with `apps/worker-api`, `apps/dashboard`, `packages/shared` (domain types, config, utils)
   - Requirements: NFR-MNT-001
   - Design: DD-002, DD-003
 
