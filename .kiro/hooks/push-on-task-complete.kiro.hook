@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Push to Remote on Task Complete",
+  "description": "When a spec task is marked as completed, automatically stage all changes, commit with a message referencing the task, and push to the remote repository to keep it current.",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A spec task was just completed. Stage all current changes with git add, create a commit with a descriptive message about the completed work, and push to the remote repository to keep it current. Use the current branch and push with the -u flag if needed."
+  }
+}

@@ -1,0 +1,5 @@
+name = "symptom-tracker-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Bindings will be configured in Task 3 (D1, KV, R2, Queue per environment)

@@ -6,18 +6,15 @@
  * contracts and any compile-time constants.
  */
 
+export { validateEnv, assertEnv, WORKER_API_BINDINGS } from './env.js';
+export type { EnvValidationRule, EnvValidationResult } from './env.js';
+
 /** Mounjaro dose options in mg. */
 export const MOUNJARO_DOSES = [2.5, 5, 7.5, 10, 12.5, 15] as const;
 export type MounjariDose = (typeof MOUNJARO_DOSES)[number];
 
 /** Valid injection sites. */
-export const INJECTION_SITES = [
-  'abdomen',
-  'thigh-L',
-  'thigh-R',
-  'arm-L',
-  'arm-R',
-] as const;
+export const INJECTION_SITES = ['abdomen', 'thigh-L', 'thigh-R', 'arm-L', 'arm-R'] as const;
 export type InjectionSite = (typeof INJECTION_SITES)[number];
 
 /** Ordinal scale bounds used across all 0–5 measures. */

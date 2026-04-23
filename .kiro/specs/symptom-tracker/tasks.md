@@ -2,11 +2,11 @@
 
 ## Milestone M0 — Repository and environments
 
-- [-] 1. Create monorepo with `apps/worker-api`, `apps/dashboard`, `packages/shared` (domain types, config, utils)
+- [x] 1. Create monorepo with `apps/worker-api`, `apps/dashboard`, `packages/shared` (domain types, config, utils)
   - Requirements: NFR-MNT-001
   - Design: DD-002, DD-003
 
-- [ ] 2. Set up TypeScript, ESLint, Prettier, Vitest, and environment validation
+- [x] 2. Set up TypeScript, ESLint, Prettier, Vitest, and environment validation
   - Requirements: NFR-MNT-003, NFR-MNT-005
   - Depends on: Task 1
 
