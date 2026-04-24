@@ -18,6 +18,11 @@ import type { QueueMessageType, InboundQueueMessage } from './queue-publisher';
 import type { Env } from '../index';
 import { parseCommand } from './command-router';
 import type { ParsedCommand } from './command-router';
+import { findBindingByPhone } from './whatsapp-binding';
+import { getSession } from './checkin-session';
+import { startCheckin, processAnswer } from './checkin-flow';
+import type { CheckinFlowEnv } from './checkin-flow';
+import { localDateToday } from '@symptom-tracker/shared';
 
 /** Result of processing a single queue message. */
 interface ProcessingResult {
@@ -56,7 +61,30 @@ export function extractTextFromPayload(rawBody: string): string | null {
   return null;
 }
 
-async function handleInboundMessage(body: InboundQueueMessage): Promise<void> {
+/**
+ * Extract the sender's phone number from a raw WhatsApp webhook payload.
+ *
+ * Returns null when the payload does not contain a message with a sender.
+ */
+export function extractPhoneFromPayload(rawBody: string): string | null {
+  try {
+    const payload = JSON.parse(rawBody);
+    const entry = payload?.entry?.[0];
+    const change = entry?.changes?.[0];
+    const messages = change?.value?.messages;
+    if (Array.isArray(messages) && messages.length > 0) {
+      const msg = messages[0];
+      if (typeof msg.from === 'string') {
+        return msg.from;
+      }
+    }
+  } catch {
+    // Malformed JSON — fall through to null
+  }
+  return null;
+}
+
+async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promise<void> {
   const text = extractTextFromPayload(body.rawBody);
 
   if (text === null) {
@@ -71,6 +99,34 @@ async function handleInboundMessage(body: InboundQueueMessage): Promise<void> {
     return;
   }
 
+  // Extract phone number and look up user binding
+  const phone = extractPhoneFromPayload(body.rawBody);
+  if (!phone) {
+    console.log(
+      JSON.stringify({
+        level: 'warn',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'Could not extract phone number from payload',
+      }),
+    );
+    return;
+  }
+
+  const { binding } = await findBindingByPhone(env.DB, phone);
+  if (!binding) {
+    console.log(
+      JSON.stringify({
+        level: 'warn',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'No active binding found for phone number',
+      }),
+    );
+    return;
+  }
+
+  const userId = binding.user_id;
   const command: ParsedCommand = parseCommand(text);
 
   console.log(
@@ -83,10 +139,65 @@ async function handleInboundMessage(body: InboundQueueMessage): Promise<void> {
     }),
   );
 
-  // TODO: dispatch command to appropriate handler (tasks 14–26)
+  const flowEnv: CheckinFlowEnv = { DB: env.DB, KV: env.KV };
+
+  // Check for active check-in session
+  const activeSession = await getSession(env.KV, userId);
+
+  // Dispatch command
+  if (command.type === 'checkin') {
+    // Look up user timezone for local date
+    const user = await env.DB
+      .prepare('SELECT timezone FROM user WHERE id = ?')
+      .bind(userId)
+      .first<{ timezone: string }>();
+    const timezone = user?.timezone ?? 'UTC';
+    const checkinDate = localDateToday(timezone);
+
+    const result = await startCheckin(flowEnv, userId, checkinDate);
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'Check-in flow started/resumed',
+        completed: result.completed,
+      }),
+    );
+    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    return;
+  }
+
+  if (command.type === 'message' && activeSession) {
+    // Process as an answer to the current check-in question
+    const result = await processAnswer(flowEnv, userId, command.text);
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'Check-in answer processed',
+        completed: result.completed,
+      }),
+    );
+    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    return;
+  }
+
+  // Other commands (help, inject, note, etc.) — stubs for future tasks
+  // If a session is active, these commands don't lose the session
+  console.log(
+    JSON.stringify({
+      level: 'info',
+      handler: 'inbound-message',
+      messageId: body.messageId,
+      commandType: command.type,
+      msg: 'Command dispatched (stub)',
+    }),
+  );
 }
 
-async function handleScheduledPrompt(body: InboundQueueMessage): Promise<void> {
+async function handleScheduledPrompt(body: InboundQueueMessage, _env: Env): Promise<void> {
   console.log(
     JSON.stringify({
       level: 'info',
@@ -97,7 +208,7 @@ async function handleScheduledPrompt(body: InboundQueueMessage): Promise<void> {
   );
 }
 
-async function handleReportGenerate(body: InboundQueueMessage): Promise<void> {
+async function handleReportGenerate(body: InboundQueueMessage, _env: Env): Promise<void> {
   console.log(
     JSON.stringify({
       level: 'info',
@@ -110,6 +221,7 @@ async function handleReportGenerate(body: InboundQueueMessage): Promise<void> {
 
 async function handleAnalyticsRefresh(
   body: InboundQueueMessage,
+  _env: Env,
 ): Promise<void> {
   console.log(
     JSON.stringify({
@@ -124,7 +236,7 @@ async function handleAnalyticsRefresh(
 /** Map of message type → handler function. */
 const handlers: Record<
   QueueMessageType,
-  (body: InboundQueueMessage) => Promise<void>
+  (body: InboundQueueMessage, env: Env) => Promise<void>
 > = {
   'inbound-message': handleInboundMessage,
   'scheduled-prompt': handleScheduledPrompt,
@@ -138,6 +250,7 @@ const handlers: Record<
  */
 async function processMessage(
   message: Message<InboundQueueMessage>,
+  env: Env,
 ): Promise<ProcessingResult> {
   const startTime = Date.now();
   const body = message.body;
@@ -165,7 +278,7 @@ async function processMessage(
   }
 
   try {
-    await handler(body);
+    await handler(body, env);
     message.ack();
 
     return {
@@ -209,7 +322,7 @@ async function processMessage(
  */
 export async function handleQueueBatch(
   batch: MessageBatch<InboundQueueMessage>,
-  _env: Env,
+  env: Env,
   _ctx: ExecutionContext,
 ): Promise<void> {
   const batchSize = batch.messages.length;
@@ -227,7 +340,7 @@ export async function handleQueueBatch(
   const results: ProcessingResult[] = [];
 
   for (const message of batch.messages) {
-    const result = await processMessage(message);
+    const result = await processMessage(message, env);
     results.push(result);
   }
 
