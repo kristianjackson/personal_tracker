@@ -24,7 +24,7 @@
 
 ## Milestone M1 — Ingress and persistence
 
-- [ ] 6. Implement D1 schema migrations for all core entities: user (with IANA timezone), whatsapp_binding, daily_checkin (with UNIQUE user_id+checkin_date), symptom_observation (with skipped flag), note (with JSON tags array), medication_definition, medication_event (with injection_site), side_effect_observation, behavioral_event, instrument_response, analytic_flag, summary_report, audit_event
+- [x] 6. Implement D1 schema migrations for all core entities: user (with IANA timezone), whatsapp_binding, daily_checkin (with UNIQUE user_id+checkin_date), symptom_observation (with skipped flag), note (with JSON tags array), medication_definition, medication_event (with injection_site), side_effect_observation, behavioral_event, instrument_response, analytic_flag, summary_report, audit_event
   - Requirements: NFR-MNT-002, FR-CAP-004
   - Design: Sections 5.1–5.13
   - Depends on: Task 3
