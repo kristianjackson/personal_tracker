@@ -29,7 +29,7 @@
   - Design: Sections 5.1–5.13
   - Depends on: Task 3
 
-- [ ] 7. Implement inbound webhook verification endpoint (Meta webhook challenge/verify token validation) that returns 200 within 200ms
+- [x] 7. Implement inbound webhook verification endpoint (Meta webhook challenge/verify token validation) that returns 200 within 200ms
   - Requirements: FR-WA-001, NFR-OPS-001
   - Design: DD-002
   - Depends on: Task 3

@@ -20,7 +20,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "symptom-tracker-db"
-database_id = "<D1_DATABASE_ID>"          # wrangler d1 create symptom-tracker-db
+database_id = "2933baa7-ad93-424e-880a-2fc996657884"
 migrations_dir = "./migrations"
 
 # ── Workers KV ───────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ migrations_dir = "./migrations"
 # config (baselines, feature flags).
 [[kv_namespaces]]
 binding = "KV"
-id = "<KV_NAMESPACE_ID>"                  # wrangler kv namespace create SYMPTOM_TRACKER_KV
+id = "f6c9649f12d447b9b0ae316fde552db5"
 
 # ── R2 Object Storage ───────────────────────────────────────────────
 # PDFs, CSVs, and raw webhook payload archive (30-day retention).
@@ -74,12 +74,12 @@ ENVIRONMENT = "dev"
 [[env.dev.d1_databases]]
 binding = "DB"
 database_name = "symptom-tracker-dev-db"
-database_id = "<DEV_D1_DATABASE_ID>"      # wrangler d1 create symptom-tracker-dev-db
+database_id = "5f73e201-a92c-41b7-90a1-4612cec6afaf"
 migrations_dir = "./migrations"
 
 [[env.dev.kv_namespaces]]
 binding = "KV"
-id = "<DEV_KV_NAMESPACE_ID>"             # wrangler kv namespace create SYMPTOM_TRACKER_DEV_KV
+id = "5dbeabae7c534924a5e2c671efa81c35"
 
 [[env.dev.r2_buckets]]
 binding = "BUCKET"
@@ -107,12 +107,12 @@ ENVIRONMENT = "production"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "symptom-tracker-db"
-database_id = "<PROD_D1_DATABASE_ID>"     # wrangler d1 create symptom-tracker-db
+database_id = "2933baa7-ad93-424e-880a-2fc996657884"
 migrations_dir = "./migrations"
 
 [[env.production.kv_namespaces]]
 binding = "KV"
-id = "<PROD_KV_NAMESPACE_ID>"            # wrangler kv namespace create SYMPTOM_TRACKER_KV
+id = "f6c9649f12d447b9b0ae316fde552db5"
 
 [[env.production.r2_buckets]]
 binding = "BUCKET"
