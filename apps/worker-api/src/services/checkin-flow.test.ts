@@ -708,3 +708,117 @@ describe('full check-in flow integration', () => {
     expect(result.completed).toBe(false);
   });
 });
+
+// ── Retroactive check-in flow (FR-CAP-003) ─────────────────────────
+
+describe('retroactive check-in flow', () => {
+  it('starts a retroactive check-in with "(retroactive)" label', async () => {
+    const { env } = createTestEnv();
+    const retroDate = '2025-07-13';
+
+    const result = await startCheckin(env, TEST_USER_ID, retroDate, true);
+    expect(result.completed).toBe(false);
+    expect(result.messages[0]).toContain(retroDate);
+    expect(result.messages[0]).toContain('retroactive');
+  });
+
+  it('starts a non-retroactive check-in without "(retroactive)" label', async () => {
+    const { env } = createTestEnv();
+
+    const result = await startCheckin(env, TEST_USER_ID, TEST_DATE, false);
+    expect(result.completed).toBe(false);
+    expect(result.messages[0]).toContain(TEST_DATE);
+    expect(result.messages[0]).not.toContain('retroactive');
+  });
+
+  it('persists is_retroactive=1 for retroactive check-ins', async () => {
+    const { db, statements } = createD1Mock();
+    const questions = getEnabledQuestions();
+    const answers: Record<string, CheckinAnswer> = {};
+
+    for (const q of questions) {
+      answers[q.variable_code] = {
+        variableCode: q.variable_code,
+        valueNumeric: q.type === 'text' ? null : 3,
+        valueText: q.type === 'text' ? 'test' : null,
+        skipped: false,
+        answeredAt: '2025-07-15T10:00:00.000Z',
+      };
+    }
+
+    const session: CheckinSession = {
+      sessionId: 'session-retro',
+      userId: TEST_USER_ID,
+      checkinDate: '2025-07-13',
+      currentQuestionIndex: questions.length,
+      answers,
+      startedAt: '2025-07-15T09:00:00.000Z',
+      updatedAt: '2025-07-15T10:00:00.000Z',
+      isRetroactive: true,
+    };
+
+    await persistCheckin(db, session);
+
+    const checkinStmt = statements[0];
+    expect(checkinStmt.sql).toContain('INSERT INTO daily_checkin');
+    // is_retroactive param (index 4)
+    expect(checkinStmt.params[4]).toBe(1);
+    // checkin_date should be the retroactive date
+    expect(checkinStmt.params[2]).toBe('2025-07-13');
+  });
+
+  it('persists is_retroactive=0 for today check-ins', async () => {
+    const { db, statements } = createD1Mock();
+    const questions = getEnabledQuestions();
+    const answers: Record<string, CheckinAnswer> = {};
+
+    for (const q of questions) {
+      answers[q.variable_code] = {
+        variableCode: q.variable_code,
+        valueNumeric: q.type === 'text' ? null : 3,
+        valueText: q.type === 'text' ? 'test' : null,
+        skipped: false,
+        answeredAt: '2025-07-15T10:00:00.000Z',
+      };
+    }
+
+    const session: CheckinSession = {
+      sessionId: 'session-today',
+      userId: TEST_USER_ID,
+      checkinDate: TEST_DATE,
+      currentQuestionIndex: questions.length,
+      answers,
+      startedAt: '2025-07-15T09:00:00.000Z',
+      updatedAt: '2025-07-15T10:00:00.000Z',
+      isRetroactive: false,
+    };
+
+    await persistCheckin(db, session);
+
+    const checkinStmt = statements[0];
+    expect(checkinStmt.params[4]).toBe(0);
+  });
+
+  it('completes a full retroactive check-in flow end-to-end', async () => {
+    const { env } = createTestEnv();
+    const retroDate = '2025-07-12';
+
+    // Start retroactive check-in
+    const start = await startCheckin(env, TEST_USER_ID, retroDate, true);
+    expect(start.completed).toBe(false);
+    expect(start.messages[0]).toContain('retroactive');
+
+    // Answer all questions
+    const answers = [
+      '6', '3', '2', '3', '1', '2', '3', '0', '1', '0', '0', '3', 'yes', 'skip', 'skip',
+    ];
+
+    let lastResult;
+    for (const answer of answers) {
+      lastResult = await processAnswer(env, TEST_USER_ID, answer);
+    }
+
+    expect(lastResult!.completed).toBe(true);
+    expect(lastResult!.messages[0]).toContain('Check-in saved');
+  });
+});

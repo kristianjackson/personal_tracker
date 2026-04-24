@@ -325,6 +325,7 @@ export async function startCheckin(
   env: CheckinFlowEnv,
   userId: string,
   checkinDate: string,
+  isRetroactive = false,
 ): Promise<CheckinFlowResult> {
   const existingSession = await getSession(env.KV, userId);
 
@@ -356,7 +357,7 @@ export async function startCheckin(
   }
 
   // Create new session
-  const session = await createSession(env.KV, userId, checkinDate);
+  const session = await createSession(env.KV, userId, checkinDate, isRetroactive);
   const question = getNextQuestion(session);
   const total = getEnabledQuestions().length;
 
@@ -367,9 +368,11 @@ export async function startCheckin(
     };
   }
 
+  const dateLabel = isRetroactive ? `${checkinDate} (retroactive)` : checkinDate;
+
   return {
     messages: [
-      `Starting daily check-in for ${checkinDate}.`,
+      `Starting daily check-in for ${dateLabel}.`,
       formatQuestionPrompt(question, 0, total),
     ],
     completed: false,

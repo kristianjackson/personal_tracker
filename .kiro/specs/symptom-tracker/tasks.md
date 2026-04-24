@@ -81,53 +81,53 @@
   - Design: Section 5.5
   - Depends on: Task 13
 
-- [ ] 17. Implement retroactive date selection: allow `checkin yesterday` or `checkin 2025-04-20` within 7-day lookback, flag record as is_retroactive=1
+- [x] 17. Implement retroactive date selection: allow `checkin yesterday` or `checkin 2025-04-20` within 7-day lookback, flag record as is_retroactive=1
   - Requirements: FR-CAP-003
   - Depends on: Task 15
   - Note: Deferrable to post-MVP
 
-- [ ] 18. Implement medication event logging: `missed med` and `missed <med-name>` commands create medication_event records with event_type=missed; `took <med-name>` creates event_type=taken
+- [~] 18. Implement medication event logging: `missed med` and `missed <med-name>` commands create medication_event records with event_type=missed; `took <med-name>` creates event_type=taken
   - Requirements: FR-MED-001, FR-MED-005
   - Design: Section 5.7
   - Depends on: Task 13
 
-- [ ] 19. Implement Mounjaro injection flow: `inject` command triggers guided flow asking dose (2.5/5/7.5/10/12.5/15 mg), time (now or specific), site (abdomen/thigh-L/thigh-R/arm-L/arm-R), and 72h symptom watch opt-in. Creates medication_event with event_type=injected and injection_site.
+- [~] 19. Implement Mounjaro injection flow: `inject` command triggers guided flow asking dose (2.5/5/7.5/10/12.5/15 mg), time (now or specific), site (abdomen/thigh-L/thigh-R/arm-L/arm-R), and 72h symptom watch opt-in. Creates medication_event with event_type=injected and injection_site.
   - Requirements: FR-MED-002, DAT-021, DAT-022, DAT-023
   - Design: Section 6.4
   - Depends on: Task 18
 
-- [ ] 20. Implement side-effect capture: after injection (and during 72h watch follow-ups), prompt for nausea/diarrhea/vomiting/constipation/abdominal pain/hydration difficulty/appetite suppression on 0–5 scale. Store as side_effect_observation linked to nearest medication_event within 72h window.
+- [~] 20. Implement side-effect capture: after injection (and during 72h watch follow-ups), prompt for nausea/diarrhea/vomiting/constipation/abdominal pain/hydration difficulty/appetite suppression on 0–5 scale. Store as side_effect_observation linked to nearest medication_event within 72h window.
   - Requirements: FR-MED-003, DAT-024–DAT-030
   - Design: Section 5.8
   - Depends on: Task 19
 
-- [ ] 21. Implement weekly mania screener scaffold: feature-flagged instrument flow via WhatsApp, stores instrument_response with name, version, raw JSON responses, and calculated score
+- [~] 21. Implement weekly mania screener scaffold: feature-flagged instrument flow via WhatsApp, stores instrument_response with name, version, raw JSON responses, and calculated score
   - Requirements: FR-INST-001, FR-INST-002, FR-INST-004
   - Depends on: Task 15
   - Note: Deferrable to post-MVP
 
-- [ ] 22. Implement outbound prompt scheduler: cron trigger sends daily check-in prompt and weekly summary prompt at user's configured local time (convert IANA timezone to UTC for cron scheduling)
+- [~] 22. Implement outbound prompt scheduler: cron trigger sends daily check-in prompt and weekly summary prompt at user's configured local time (convert IANA timezone to UTC for cron scheduling)
   - Requirements: FR-WA-007, FR-ADM-001
   - Design: DD-010, Section 10.1
   - Depends on: Task 3
 
-- [ ] 23. Implement WhatsApp template message support: use pre-approved templates for scheduled prompts sent outside the 24h service window
+- [~] 23. Implement WhatsApp template message support: use pre-approved templates for scheduled prompts sent outside the 24h service window
   - Requirements: FR-WA-008
   - Design: DD-001
   - Depends on: Task 22
 
-- [ ] 24. Implement plain-language parser for common reply patterns: extract numbers from "slept 4 hours", "mood 4", "4/5", "pretty elevated maybe 4"; handle "skip"/"s"/"next"; detect medication names in "missed seroquel"
+- [~] 24. Implement plain-language parser for common reply patterns: extract numbers from "slept 4 hours", "mood 4", "4/5", "pretty elevated maybe 4"; handle "skip"/"s"/"next"; detect medication names in "missed seroquel"
   - Requirements: FR-WA-009
   - Design: Section 6.5
   - Depends on: Task 15
   - Note: Deferrable — start with strict numeric parsing, enhance later
 
-- [ ] 25. Add concise save confirmations after each persisted record (e.g. "✓ Check-in saved (11/13 answered)") and failure recovery messages when writes fail
+- [~] 25. Add concise save confirmations after each persisted record (e.g. "✓ Check-in saved (11/13 answered)") and failure recovery messages when writes fail
   - Requirements: FR-WA-010, NFR-OPS-004
   - Design: Section 6.1
   - Depends on: Task 15
 
-- [ ] 26. Add configurable question packs: load check-in questions from seed config JSON, support reordering and disabling questions. Add custom tag creation via `tags add <name>` command.
+- [~] 26. Add configurable question packs: load check-in questions from seed config JSON, support reordering and disabling questions. Add custom tag creation via `tags add <name>` command.
   - Requirements: FR-ADM-002, FR-ADM-003, FR-CAP-007
   - Design: DD-008
   - Depends on: Task 5, Task 15

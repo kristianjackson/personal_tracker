@@ -28,7 +28,7 @@ import {
   getPendingNote,
 } from './note-capture';
 import type { NoteCaptureEnv } from './note-capture';
-import { localDateToday } from '@symptom-tracker/shared';
+import { localDateToday, parseCheckinDate, isCheckinDateError } from '@symptom-tracker/shared';
 
 /** Result of processing a single queue message. */
 interface ProcessingResult {
@@ -159,9 +159,26 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
       .bind(userId)
       .first<{ timezone: string }>();
     const timezone = user?.timezone ?? 'UTC';
-    const checkinDate = localDateToday(timezone);
 
-    const result = await startCheckin(flowEnv, userId, checkinDate);
+    // Parse and validate the optional date argument (FR-CAP-003)
+    const dateResult = parseCheckinDate(command.dateArg, timezone);
+    if (isCheckinDateError(dateResult)) {
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Check-in date validation failed',
+        }),
+      );
+      // TODO: send dateResult.error back to user via WhatsApp API (task 25)
+      return;
+    }
+
+    const { date: checkinDate, isRetroactive } = dateResult;
+
+    // Create session with retroactive flag if applicable
+    const result = await startCheckin(flowEnv, userId, checkinDate, isRetroactive);
     console.log(
       JSON.stringify({
         level: 'info',
@@ -169,6 +186,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         messageId: body.messageId,
         msg: 'Check-in flow started/resumed',
         completed: result.completed,
+        isRetroactive,
       }),
     );
     // TODO: send result.messages back to user via WhatsApp API (task 25)
