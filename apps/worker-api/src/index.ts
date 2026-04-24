@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { webhook } from './routes/webhook';
+import { handleQueueBatch } from './services/queue-consumer';
 
 /**
  * Cloudflare Worker bindings.
@@ -16,10 +17,13 @@ export interface Env {
   ENVIRONMENT: string;
 
   // ── Secrets (set via `wrangler secret put`) ──
-  WEBHOOK_VERIFY_TOKEN: string;
+  WHATSAPP_API_TOKEN: string;
+  WHATSAPP_PHONE_NUMBER_ID: string;
+  WHATSAPP_VERIFY_TOKEN: string;
+  META_APP_SECRET: string;
 }
 
-const app = new Hono<{ Bindings: Env }>();
+export const app = new Hono<{ Bindings: Env }>();
 
 app.get('/health', (c) => {
   return c.json({ status: 'ok' });
@@ -28,4 +32,7 @@ app.get('/health', (c) => {
 // Mount webhook routes
 app.route('/webhook', webhook);
 
-export default app;
+export default {
+  fetch: app.fetch,
+  queue: handleQueueBatch,
+};

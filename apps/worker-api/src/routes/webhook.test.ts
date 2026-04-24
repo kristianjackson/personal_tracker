@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import app from '../index';
+import { app } from '../index';
 
 const VERIFY_TOKEN = 'test-verify-token-secret';
 
 /**
  * Helper to build a mock env with the required bindings.
- * Only WEBHOOK_VERIFY_TOKEN is needed for webhook tests.
+ * Only WHATSAPP_VERIFY_TOKEN is needed for webhook tests.
  */
 function mockBucket() {
   return {
@@ -21,7 +21,10 @@ function mockBucket() {
 
 function mockEnv(bucket?: R2Bucket, queue?: Queue) {
   return {
-    WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN,
+    WHATSAPP_VERIFY_TOKEN: VERIFY_TOKEN,
+    WHATSAPP_API_TOKEN: 'test-api-token',
+    WHATSAPP_PHONE_NUMBER_ID: 'test-phone-id',
+    META_APP_SECRET: 'test-app-secret',
     ENVIRONMENT: 'test',
     DB: {} as D1Database,
     QUEUE: queue ?? mockQueue(),

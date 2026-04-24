@@ -44,7 +44,7 @@
   - Design: DD-002
   - Depends on: Task 7
 
-- [ ] 10. Build queue consumer skeleton with dead-letter strategy (retry 3x with exponential backoff, then dead-letter)
+- [x] 10. Build queue consumer skeleton with dead-letter strategy (retry 3x with exponential backoff, then dead-letter)
   - Requirements: NFR-OPS-004, NFR-OPS-006
   - Design: Section 10.2
   - Depends on: Task 9

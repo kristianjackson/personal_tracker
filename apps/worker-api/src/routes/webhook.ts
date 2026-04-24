@@ -12,7 +12,7 @@ const webhook = new Hono<{ Bindings: Env }>();
  *   hub.mode, hub.verify_token, hub.challenge
  *
  * If hub.mode === 'subscribe' and hub.verify_token matches the stored
- * WEBHOOK_VERIFY_TOKEN secret, return 200 with hub.challenge as plain text.
+ * WHATSAPP_VERIFY_TOKEN secret, return 200 with hub.challenge as plain text.
  * Otherwise return 403.
  *
  * Validates: FR-WA-001, NFR-OPS-001
@@ -25,7 +25,7 @@ webhook.get('/', (c) => {
   if (
     mode === 'subscribe' &&
     token &&
-    token === c.env.WEBHOOK_VERIFY_TOKEN &&
+    token === c.env.WHATSAPP_VERIFY_TOKEN &&
     challenge
   ) {
     return c.text(challenge, 200);
