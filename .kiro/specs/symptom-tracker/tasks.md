@@ -111,7 +111,7 @@
   - Design: DD-010, Section 10.1
   - Depends on: Task 3
 
-- [~] 23. Implement WhatsApp template message support: use pre-approved templates for scheduled prompts sent outside the 24h service window
+- [x] 23. Implement WhatsApp template message support: use pre-approved templates for scheduled prompts sent outside the 24h service window
   - Requirements: FR-WA-008
   - Design: DD-001
   - Depends on: Task 22

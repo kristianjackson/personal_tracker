@@ -65,6 +65,13 @@ function makeBody(
 const mockEnv = {
   WHATSAPP_API_TOKEN: 'test-token',
   WHATSAPP_PHONE_NUMBER_ID: '123456',
+  KV: {
+    get: vi.fn().mockResolvedValue(null),
+    put: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    list: vi.fn(),
+    getWithMetadata: vi.fn(),
+  },
 } as unknown as Env;
 const mockCtx = {
   waitUntil: vi.fn(),

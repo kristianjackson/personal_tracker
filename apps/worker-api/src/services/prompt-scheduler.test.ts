@@ -8,6 +8,16 @@ import {
   getPromptText,
   handleScheduledEvent,
   processScheduledPrompt,
+  recordInboundTimestamp,
+  isWithinServiceWindow,
+  buildTemplateMessagePayload,
+  buildTextMessagePayload,
+  TEMPLATE_DAILY_CHECKIN,
+  TEMPLATE_WEEKLY_SUMMARY,
+  TEMPLATE_LANGUAGE_CODE,
+  TEMPLATE_NAME_MAP,
+  KV_LAST_INBOUND_PREFIX,
+  SERVICE_WINDOW_MS,
 } from './prompt-scheduler';
 import type { ScheduledPromptBody, ScheduledPromptPayload } from './prompt-scheduler';
 import type { Env } from '../index';
@@ -36,7 +46,7 @@ function mockEnv(overrides: Partial<Env> = {}): Env {
       send: vi.fn().mockResolvedValue(undefined),
     } as unknown as Queue,
     BUCKET: {} as R2Bucket,
-    KV: {} as KVNamespace,
+    KV: createMockKV(),
     ENVIRONMENT: 'test',
     WHATSAPP_API_TOKEN: 'test-token',
     WHATSAPP_PHONE_NUMBER_ID: '123456',
@@ -44,6 +54,18 @@ function mockEnv(overrides: Partial<Env> = {}): Env {
     META_APP_SECRET: 'app-secret',
     ...overrides,
   };
+}
+
+/** Create a mock KV namespace backed by a simple Map. */
+function createMockKV(initialData: Record<string, string> = {}): KVNamespace {
+  const store = new Map<string, string>(Object.entries(initialData));
+  return {
+    get: vi.fn(async (key: string) => store.get(key) ?? null),
+    put: vi.fn(async (key: string, value: string) => { store.set(key, value); }),
+    delete: vi.fn(async (key: string) => { store.delete(key); }),
+    list: vi.fn(),
+    getWithMetadata: vi.fn(),
+  } as unknown as KVNamespace;
 }
 
 // ── getLocalTimeComponents ──────────────────────────────────────────
@@ -438,7 +460,7 @@ describe('processScheduledPrompt', () => {
     vi.restoreAllMocks();
   });
 
-  it('sends a WhatsApp message for a daily prompt', async () => {
+  it('sends a text message when user is within 24h service window (daily)', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ messages: [{ id: 'wamid.123' }] }), {
         status: 200,
@@ -455,7 +477,10 @@ describe('processScheduledPrompt', () => {
       timezone: 'UTC',
     };
 
-    const env = mockEnv();
+    // User messaged 1 hour ago — within service window
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const kv = createMockKV({ [`${KV_LAST_INBOUND_PREFIX}user-1`]: oneHourAgo });
+    const env = mockEnv({ KV: kv });
     await processScheduledPrompt(JSON.stringify(body), env);
 
     expect(fetchSpy).toHaveBeenCalledOnce();
@@ -471,9 +496,68 @@ describe('processScheduledPrompt', () => {
     expect(requestBody.text.body).toContain('checkin');
   });
 
-  it('sends a WhatsApp message for a weekly prompt', async () => {
+  it('sends a template message when user is outside 24h service window (daily)', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ messages: [{ id: 'wamid.456' }] }), {
+        status: 200,
+      }),
+    );
+
+    const body: ScheduledPromptBody = {
+      scheduleId: 'daily-checkin',
+      scheduleName: 'Daily Check-in Prompt',
+      scheduleType: 'daily',
+      userId: 'user-1',
+      phoneNumber: '+1234567890',
+      localTime: '09:00',
+      timezone: 'UTC',
+    };
+
+    // User messaged 25 hours ago — outside service window
+    const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+    const kv = createMockKV({ [`${KV_LAST_INBOUND_PREFIX}user-1`]: twentyFiveHoursAgo });
+    const env = mockEnv({ KV: kv });
+    await processScheduledPrompt(JSON.stringify(body), env);
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const requestBody = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    expect(requestBody.messaging_product).toBe('whatsapp');
+    expect(requestBody.to).toBe('+1234567890');
+    expect(requestBody.type).toBe('template');
+    expect(requestBody.template.name).toBe(TEMPLATE_DAILY_CHECKIN);
+    expect(requestBody.template.language.code).toBe('en');
+  });
+
+  it('sends a template message when no inbound timestamp exists', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ messages: [{ id: 'wamid.789' }] }), {
+        status: 200,
+      }),
+    );
+
+    const body: ScheduledPromptBody = {
+      scheduleId: 'daily-checkin',
+      scheduleName: 'Daily Check-in Prompt',
+      scheduleType: 'daily',
+      userId: 'user-1',
+      phoneNumber: '+1234567890',
+      localTime: '09:00',
+      timezone: 'UTC',
+    };
+
+    // No inbound timestamp in KV — outside service window
+    const env = mockEnv();
+    await processScheduledPrompt(JSON.stringify(body), env);
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const requestBody = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    expect(requestBody.type).toBe('template');
+    expect(requestBody.template.name).toBe(TEMPLATE_DAILY_CHECKIN);
+  });
+
+  it('sends a text message for a weekly prompt within service window', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ messages: [{ id: 'wamid.abc' }] }), {
         status: 200,
       }),
     );
@@ -488,12 +572,43 @@ describe('processScheduledPrompt', () => {
       timezone: 'UTC',
     };
 
+    const recentTimestamp = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const kv = createMockKV({ [`${KV_LAST_INBOUND_PREFIX}user-1`]: recentTimestamp });
+    const env = mockEnv({ KV: kv });
+    await processScheduledPrompt(JSON.stringify(body), env);
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const requestBody = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    expect(requestBody.type).toBe('text');
+    expect(requestBody.text.body).toContain('weekly');
+  });
+
+  it('sends a template message for a weekly prompt outside service window', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ messages: [{ id: 'wamid.def' }] }), {
+        status: 200,
+      }),
+    );
+
+    const body: ScheduledPromptBody = {
+      scheduleId: 'weekly-summary',
+      scheduleName: 'Weekly Summary Prompt',
+      scheduleType: 'weekly',
+      userId: 'user-1',
+      phoneNumber: '+1234567890',
+      localTime: '10:00',
+      timezone: 'UTC',
+    };
+
+    // No inbound timestamp — outside service window
     const env = mockEnv();
     await processScheduledPrompt(JSON.stringify(body), env);
 
     expect(fetchSpy).toHaveBeenCalledOnce();
     const requestBody = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
-    expect(requestBody.text.body).toContain('weekly');
+    expect(requestBody.type).toBe('template');
+    expect(requestBody.template.name).toBe(TEMPLATE_WEEKLY_SUMMARY);
+    expect(requestBody.template.language.code).toBe('en');
   });
 
   it('throws on WhatsApp API error', async () => {
@@ -515,5 +630,170 @@ describe('processScheduledPrompt', () => {
     await expect(
       processScheduledPrompt(JSON.stringify(body), env),
     ).rejects.toThrow('WhatsApp API error (401)');
+  });
+});
+
+// ── recordInboundTimestamp ───────────────────────────────────────────
+
+describe('recordInboundTimestamp', () => {
+  it('stores the current timestamp in KV when no timestamp provided', async () => {
+    const kv = createMockKV();
+    await recordInboundTimestamp(kv, 'user-1');
+
+    expect(kv.put).toHaveBeenCalledOnce();
+    const [key, value] = (kv.put as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(key).toBe(`${KV_LAST_INBOUND_PREFIX}user-1`);
+    // Value should be a valid ISO timestamp
+    expect(new Date(value).toISOString()).toBe(value);
+  });
+
+  it('stores a provided timestamp in KV', async () => {
+    const kv = createMockKV();
+    const ts = '2025-06-18T09:00:00.000Z';
+    await recordInboundTimestamp(kv, 'user-42', ts);
+
+    expect(kv.put).toHaveBeenCalledWith(`${KV_LAST_INBOUND_PREFIX}user-42`, ts);
+  });
+
+  it('overwrites previous timestamp for the same user', async () => {
+    const oldTs = '2025-06-17T09:00:00.000Z';
+    const kv = createMockKV({ [`${KV_LAST_INBOUND_PREFIX}user-1`]: oldTs });
+
+    const newTs = '2025-06-18T09:00:00.000Z';
+    await recordInboundTimestamp(kv, 'user-1', newTs);
+
+    expect(kv.put).toHaveBeenCalledWith(`${KV_LAST_INBOUND_PREFIX}user-1`, newTs);
+  });
+});
+
+// ── isWithinServiceWindow ───────────────────────────────────────────
+
+describe('isWithinServiceWindow', () => {
+  it('returns true when user messaged less than 24h ago', async () => {
+    const now = new Date('2025-06-18T12:00:00Z');
+    const lastInbound = '2025-06-18T00:00:00Z'; // 12 hours ago
+    const kv = createMockKV({ [`${KV_LAST_INBOUND_PREFIX}user-1`]: lastInbound });
+
+    const result = await isWithinServiceWindow(kv, 'user-1', now);
+    expect(result).toBe(true);
+  });
+
+  it('returns false when user messaged more than 24h ago', async () => {
+    const now = new Date('2025-06-18T12:00:00Z');
+    const lastInbound = '2025-06-17T11:00:00Z'; // 25 hours ago
+    const kv = createMockKV({ [`${KV_LAST_INBOUND_PREFIX}user-1`]: lastInbound });
+
+    const result = await isWithinServiceWindow(kv, 'user-1', now);
+    expect(result).toBe(false);
+  });
+
+  it('returns false when no inbound timestamp exists', async () => {
+    const kv = createMockKV();
+    const result = await isWithinServiceWindow(kv, 'user-1');
+    expect(result).toBe(false);
+  });
+
+  it('returns true when user messaged exactly at the boundary minus 1ms', async () => {
+    const now = new Date('2025-06-18T12:00:00.000Z');
+    // Exactly 24h minus 1ms ago
+    const lastInbound = new Date(now.getTime() - SERVICE_WINDOW_MS + 1).toISOString();
+    const kv = createMockKV({ [`${KV_LAST_INBOUND_PREFIX}user-1`]: lastInbound });
+
+    const result = await isWithinServiceWindow(kv, 'user-1', now);
+    expect(result).toBe(true);
+  });
+
+  it('returns false when user messaged exactly 24h ago', async () => {
+    const now = new Date('2025-06-18T12:00:00.000Z');
+    const lastInbound = new Date(now.getTime() - SERVICE_WINDOW_MS).toISOString();
+    const kv = createMockKV({ [`${KV_LAST_INBOUND_PREFIX}user-1`]: lastInbound });
+
+    const result = await isWithinServiceWindow(kv, 'user-1', now);
+    expect(result).toBe(false);
+  });
+});
+
+// ── buildTemplateMessagePayload ─────────────────────────────────────
+
+describe('buildTemplateMessagePayload', () => {
+  it('builds correct template payload for daily check-in', () => {
+    const payload = buildTemplateMessagePayload('+1234567890', TEMPLATE_DAILY_CHECKIN);
+
+    expect(payload).toEqual({
+      messaging_product: 'whatsapp',
+      to: '+1234567890',
+      type: 'template',
+      template: {
+        name: 'daily_checkin_prompt',
+        language: { code: 'en' },
+      },
+    });
+  });
+
+  it('builds correct template payload for weekly summary', () => {
+    const payload = buildTemplateMessagePayload('+1234567890', TEMPLATE_WEEKLY_SUMMARY);
+
+    expect(payload).toEqual({
+      messaging_product: 'whatsapp',
+      to: '+1234567890',
+      type: 'template',
+      template: {
+        name: 'weekly_summary_prompt',
+        language: { code: 'en' },
+      },
+    });
+  });
+
+  it('supports custom language code', () => {
+    const payload = buildTemplateMessagePayload('+1234567890', TEMPLATE_DAILY_CHECKIN, 'es');
+
+    expect((payload.template as Record<string, unknown>)).toEqual({
+      name: 'daily_checkin_prompt',
+      language: { code: 'es' },
+    });
+  });
+});
+
+// ── buildTextMessagePayload ─────────────────────────────────────────
+
+describe('buildTextMessagePayload', () => {
+  it('builds correct text message payload', () => {
+    const payload = buildTextMessagePayload('+1234567890', 'Hello world');
+
+    expect(payload).toEqual({
+      messaging_product: 'whatsapp',
+      to: '+1234567890',
+      type: 'text',
+      text: { body: 'Hello world' },
+    });
+  });
+});
+
+// ── Template constants ──────────────────────────────────────────────
+
+describe('template constants', () => {
+  it('has correct template name for daily check-in', () => {
+    expect(TEMPLATE_DAILY_CHECKIN).toBe('daily_checkin_prompt');
+  });
+
+  it('has correct template name for weekly summary', () => {
+    expect(TEMPLATE_WEEKLY_SUMMARY).toBe('weekly_summary_prompt');
+  });
+
+  it('has correct default language code', () => {
+    expect(TEMPLATE_LANGUAGE_CODE).toBe('en');
+  });
+
+  it('maps schedule types to template names', () => {
+    expect(TEMPLATE_NAME_MAP.daily).toBe(TEMPLATE_DAILY_CHECKIN);
+    expect(TEMPLATE_NAME_MAP.weekly).toBe(TEMPLATE_WEEKLY_SUMMARY);
+  });
+
+  it('has correct service window duration (24 hours)', () => {
+    expect(SERVICE_WINDOW_MS).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it('has correct KV prefix for inbound timestamps', () => {
+    expect(KV_LAST_INBOUND_PREFIX).toBe('last-inbound:');
   });
 });

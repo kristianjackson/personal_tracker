@@ -12,7 +12,13 @@
  * When a prompt is due, the scheduler publishes a `scheduled-prompt`
  * message to the Cloudflare Queue for async delivery via WhatsApp.
  *
+ * If the user has not sent a message within the last 24 hours (outside
+ * the WhatsApp service window), the scheduler sends a pre-approved
+ * template message instead of a regular text message, as required by
+ * WhatsApp Business API policy.
+ *
  * Validates: FR-WA-007 (send daily and weekly prompts on schedule in user's configured timezone)
+ * Validates: FR-WA-008 (use template messages where required by WhatsApp policy)
  * Validates: FR-ADM-001 (allow configuration of prompt schedule)
  * Design: DD-010 (user timezone is authoritative for dates)
  * Design: Section 10.1 (scheduler — cron-triggered prompts)
@@ -22,6 +28,31 @@
 import type { PromptSchedule } from '@symptom-tracker/shared';
 import { getEnabledSchedules } from '@symptom-tracker/shared';
 import type { Env } from '../index';
+
+// ── WhatsApp template message constants ─────────────────────────────
+// Template names must match pre-approved templates in Meta Business Manager.
+// Update these when templates are approved or renamed.
+
+/** Template name for the daily check-in prompt. */
+export const TEMPLATE_DAILY_CHECKIN = 'daily_checkin_prompt';
+
+/** Template name for the weekly summary prompt. */
+export const TEMPLATE_WEEKLY_SUMMARY = 'weekly_summary_prompt';
+
+/** Default language code for template messages. */
+export const TEMPLATE_LANGUAGE_CODE = 'en';
+
+/** Map of schedule type to template name. */
+export const TEMPLATE_NAME_MAP: Record<'daily' | 'weekly', string> = {
+  daily: TEMPLATE_DAILY_CHECKIN,
+  weekly: TEMPLATE_WEEKLY_SUMMARY,
+};
+
+/** KV key prefix for storing last inbound message timestamps. */
+export const KV_LAST_INBOUND_PREFIX = 'last-inbound:';
+
+/** Duration of the WhatsApp service window in milliseconds (24 hours). */
+export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -48,6 +79,103 @@ export interface ScheduledPromptBody {
 export interface PromptDueResult {
   isDue: boolean;
   schedule: PromptSchedule;
+}
+
+// ── Service window helpers ───────────────────────────────────────────
+
+/**
+ * Record the timestamp of an inbound message from a user in KV.
+ *
+ * This is called by the queue consumer when processing inbound messages
+ * so that the prompt scheduler can determine whether the user is within
+ * the 24-hour WhatsApp service window.
+ *
+ * @param kv - The Workers KV namespace binding.
+ * @param userId - The user's ID.
+ * @param timestamp - ISO 8601 UTC timestamp of the inbound message.
+ */
+export async function recordInboundTimestamp(
+  kv: KVNamespace,
+  userId: string,
+  timestamp?: string,
+): Promise<void> {
+  const ts = timestamp ?? new Date().toISOString();
+  await kv.put(`${KV_LAST_INBOUND_PREFIX}${userId}`, ts);
+}
+
+/**
+ * Check whether the user is within the WhatsApp 24-hour service window.
+ *
+ * The service window starts when the user sends a message to the business.
+ * If the user has sent a message within the last 24 hours, we can send
+ * regular text messages. Otherwise, we must use template messages.
+ *
+ * @param kv - The Workers KV namespace binding.
+ * @param userId - The user's ID.
+ * @param now - Optional Date override for testing.
+ * @returns True if the user is within the 24h service window.
+ */
+export async function isWithinServiceWindow(
+  kv: KVNamespace,
+  userId: string,
+  now?: Date,
+): Promise<boolean> {
+  const lastInbound = await kv.get(`${KV_LAST_INBOUND_PREFIX}${userId}`);
+  if (!lastInbound) return false;
+
+  const lastInboundTime = new Date(lastInbound).getTime();
+  const currentTime = (now ?? new Date()).getTime();
+
+  return currentTime - lastInboundTime < SERVICE_WINDOW_MS;
+}
+
+/**
+ * Build a WhatsApp Cloud API template message payload.
+ *
+ * Template messages are required when sending outbound messages outside
+ * the 24-hour service window. The template must be pre-approved in the
+ * Meta Business Manager.
+ *
+ * @param phoneNumber - The recipient's WhatsApp phone number.
+ * @param templateName - The approved template name.
+ * @param languageCode - The template language code (default: "en").
+ * @returns The JSON-serializable request body for the WhatsApp API.
+ */
+export function buildTemplateMessagePayload(
+  phoneNumber: string,
+  templateName: string,
+  languageCode: string = TEMPLATE_LANGUAGE_CODE,
+): Record<string, unknown> {
+  return {
+    messaging_product: 'whatsapp',
+    to: phoneNumber,
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: languageCode },
+    },
+  };
+}
+
+/**
+ * Build a WhatsApp Cloud API regular text message payload.
+ *
+ * Used when the user is within the 24-hour service window.
+ *
+ * @param phoneNumber - The recipient's WhatsApp phone number.
+ * @param text - The message text body.
+ * @returns The JSON-serializable request body for the WhatsApp API.
+ */
+export function buildTextMessagePayload(
+  phoneNumber: string,
+  text: string,
+): Record<string, unknown> {
+  return {
+    messaging_product: 'whatsapp',
+    to: phoneNumber,
+    type: 'text',
+    text: { body: text },
+  };
 }
 
 // ── Time helpers ────────────────────────────────────────────────────
@@ -334,8 +462,13 @@ export async function handleScheduledEvent(
  * Process a scheduled-prompt queue message: send the prompt via WhatsApp.
  *
  * This is called by the queue consumer when it receives a `scheduled-prompt`
- * message. It parses the payload and sends the appropriate prompt text
- * to the user's WhatsApp number using the Cloud API.
+ * message. It parses the payload and sends the appropriate prompt to the
+ * user's WhatsApp number using the Cloud API.
+ *
+ * If the user is within the 24-hour service window (has sent a message
+ * recently), a regular text message is sent. If outside the window,
+ * a pre-approved template message is sent instead, as required by
+ * WhatsApp Business API policy (FR-WA-008).
  *
  * @param rawBody - The JSON string from the queue message's rawBody field.
  * @param env - The Worker environment bindings.
@@ -345,7 +478,22 @@ export async function processScheduledPrompt(
   env: Env,
 ): Promise<void> {
   const body: ScheduledPromptBody = JSON.parse(rawBody);
-  const promptText = getPromptText(body.scheduleType);
+  const withinWindow = await isWithinServiceWindow(env.KV, body.userId);
+
+  let requestBody: Record<string, unknown>;
+  let messageMode: 'text' | 'template';
+
+  if (withinWindow) {
+    // Within 24h service window — send regular text message
+    const promptText = getPromptText(body.scheduleType);
+    requestBody = buildTextMessagePayload(body.phoneNumber, promptText);
+    messageMode = 'text';
+  } else {
+    // Outside 24h service window — send template message
+    const templateName = TEMPLATE_NAME_MAP[body.scheduleType];
+    requestBody = buildTemplateMessagePayload(body.phoneNumber, templateName);
+    messageMode = 'template';
+  }
 
   // Send via WhatsApp Cloud API
   const response = await fetch(
@@ -356,12 +504,7 @@ export async function processScheduledPrompt(
         Authorization: `Bearer ${env.WHATSAPP_API_TOKEN}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: body.phoneNumber,
-        type: 'text',
-        text: { body: promptText },
-      }),
+      body: JSON.stringify(requestBody),
     },
   );
 
@@ -380,6 +523,7 @@ export async function processScheduledPrompt(
       scheduleId: body.scheduleId,
       scheduleType: body.scheduleType,
       userId: body.userId,
+      messageMode,
     }),
   );
 }

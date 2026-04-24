@@ -52,7 +52,7 @@ import {
   getInstrumentSession,
 } from './instrument-flow';
 import type { InstrumentFlowEnv } from './instrument-flow';
-import { processScheduledPrompt } from './prompt-scheduler';
+import { processScheduledPrompt, recordInboundTimestamp } from './prompt-scheduler';
 import { localDateToday, parseCheckinDate, isCheckinDateError, isFeatureEnabled } from '@symptom-tracker/shared';
 
 /** Result of processing a single queue message. */
@@ -159,6 +159,9 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
 
   const userId = binding.user_id;
   const command: ParsedCommand = parseCommand(text);
+
+  // Record inbound message timestamp for 24h service window tracking (FR-WA-008)
+  await recordInboundTimestamp(env.KV, userId);
 
   console.log(
     JSON.stringify({
