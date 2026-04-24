@@ -34,6 +34,12 @@ import {
   handleTookMed,
 } from './medication-event';
 import type { MedicationEventEnv } from './medication-event';
+import {
+  startInjectionFlow,
+  processInjectionResponse,
+  getInjectionSession,
+} from './injection-flow';
+import type { InjectionFlowEnv } from './injection-flow';
 import { localDateToday, parseCheckinDate, isCheckinDateError } from '@symptom-tracker/shared';
 
 /** Result of processing a single queue message. */
@@ -154,6 +160,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
   const flowEnv: CheckinFlowEnv = { DB: env.DB, KV: env.KV };
   const noteEnv: NoteCaptureEnv = { DB: env.DB, KV: env.KV };
   const medEnv: MedicationEventEnv = { DB: env.DB };
+  const injEnv: InjectionFlowEnv = { DB: env.DB, KV: env.KV };
 
   // Check for active check-in session
   const activeSession = await getSession(env.KV, userId);
@@ -215,8 +222,24 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
     return;
   }
 
+  if (command.type === 'inject') {
+    const result = await startInjectionFlow(injEnv, userId);
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'Injection flow started/resumed',
+        completed: result.completed,
+        saved: result.saved,
+      }),
+    );
+    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    return;
+  }
+
   if (command.type === 'message') {
-    // Check for pending note tag confirmation before check-in session
+    // Check for pending note tag confirmation before other sessions
     const pendingNote = await getPendingNote(env.KV, userId);
     if (pendingNote) {
       const result = await handleTagConfirmation(noteEnv, userId, command.text);
@@ -226,6 +249,30 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           handler: 'inbound-message',
           messageId: body.messageId,
           msg: 'Tag confirmation processed',
+          saved: result.saved,
+        }),
+      );
+      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      return;
+    }
+
+    // Check for active injection session
+    const activeInjectionSession = await getInjectionSession(env.KV, userId);
+    if (activeInjectionSession) {
+      const user = await env.DB
+        .prepare('SELECT timezone FROM user WHERE id = ?')
+        .bind(userId)
+        .first<{ timezone: string }>();
+      const timezone = user?.timezone ?? 'UTC';
+
+      const result = await processInjectionResponse(injEnv, userId, command.text, timezone);
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Injection flow response processed',
+          completed: result.completed,
           saved: result.saved,
         }),
       );
@@ -309,7 +356,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
     return;
   }
 
-  // Other commands (help, inject, etc.) — stubs for future tasks
+  // Other commands (help, status, etc.) — stubs for future tasks
   // If a session is active, these commands don't lose the session
   console.log(
     JSON.stringify({

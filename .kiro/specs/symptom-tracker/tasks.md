@@ -91,7 +91,7 @@
   - Design: Section 5.7
   - Depends on: Task 13
 
-- [~] 19. Implement Mounjaro injection flow: `inject` command triggers guided flow asking dose (2.5/5/7.5/10/12.5/15 mg), time (now or specific), site (abdomen/thigh-L/thigh-R/arm-L/arm-R), and 72h symptom watch opt-in. Creates medication_event with event_type=injected and injection_site.
+- [x] 19. Implement Mounjaro injection flow: `inject` command triggers guided flow asking dose (2.5/5/7.5/10/12.5/15 mg), time (now or specific), site (abdomen/thigh-L/thigh-R/arm-L/arm-R), and 72h symptom watch opt-in. Creates medication_event with event_type=injected and injection_site.
   - Requirements: FR-MED-002, DAT-021, DAT-022, DAT-023
   - Design: Section 6.4
   - Depends on: Task 18
