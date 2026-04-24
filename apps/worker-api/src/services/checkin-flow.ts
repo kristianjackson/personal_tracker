@@ -19,6 +19,10 @@ import {
 } from '@symptom-tracker/shared';
 import type { QuestionDefinition, QuestionType } from '@symptom-tracker/shared';
 import {
+  parseNaturalNumber,
+  parseNaturalStructured,
+} from './natural-language-parser';
+import {
   getSession,
   createSession,
   saveSession,
@@ -66,23 +70,23 @@ export function isSkipCommand(text: string): boolean {
 /**
  * Parse a numeric answer (e.g. sleep hours).
  * Accepts: "7", "6.5", "slept 4 hours", "4.5 hours"
+ *
+ * Uses the natural-language parser as a fallback for conversational
+ * patterns when strict parsing fails (FR-WA-009).
  */
 export function parseNumericAnswer(text: string): number | null {
   const trimmed = text.trim();
 
-  // Try direct number parse first
+  // Try direct number parse first (strict)
   const direct = parseFloat(trimmed);
   if (!isNaN(direct) && isFinite(direct) && direct >= 0) {
     return direct;
   }
 
-  // Try extracting a number from natural language
-  const match = trimmed.match(/(\d+(?:\.\d+)?)/);
-  if (match) {
-    const val = parseFloat(match[1]);
-    if (!isNaN(val) && isFinite(val) && val >= 0) {
-      return val;
-    }
+  // Fallback to natural-language parser for conversational patterns
+  const nlResult = parseNaturalNumber(trimmed);
+  if (nlResult) {
+    return nlResult.value;
   }
 
   return null;
@@ -91,17 +95,20 @@ export function parseNumericAnswer(text: string): number | null {
 /**
  * Parse an ordinal answer (0–5 scale).
  * Accepts: "3", "4/5", "mood 4", integers 0–5
+ *
+ * Uses the natural-language parser as a fallback for conversational
+ * patterns when strict parsing fails (FR-WA-009).
  */
 export function parseOrdinalAnswer(text: string, min = 0, max = 5): number | null {
   const trimmed = text.trim();
 
-  // Try direct integer parse
+  // Try direct integer parse (strict)
   const direct = parseInt(trimmed, 10);
   if (!isNaN(direct) && direct >= min && direct <= max && String(direct) === trimmed) {
     return direct;
   }
 
-  // Try "N/5" pattern
+  // Try "N/5" pattern (strict)
   const slashMatch = trimmed.match(/^(\d+)\s*\/\s*\d+$/);
   if (slashMatch) {
     const val = parseInt(slashMatch[1], 10);
@@ -110,13 +117,10 @@ export function parseOrdinalAnswer(text: string, min = 0, max = 5): number | nul
     }
   }
 
-  // Try extracting a number from text like "mood 4" or "pretty elevated maybe 4"
-  const numberMatch = trimmed.match(/(\d+)/);
-  if (numberMatch) {
-    const val = parseInt(numberMatch[1], 10);
-    if (!isNaN(val) && val >= min && val <= max) {
-      return val;
-    }
+  // Fallback to natural-language parser for conversational patterns
+  const nlResult = parseNaturalNumber(trimmed, min, max);
+  if (nlResult) {
+    return nlResult.value;
   }
 
   return null;
@@ -125,13 +129,23 @@ export function parseOrdinalAnswer(text: string, min = 0, max = 5): number | nul
 /**
  * Parse a structured medication adherence answer.
  * Accepts: "yes", "no", "partial" → mapped to 1, 0, 0.5
+ *
+ * Falls back to natural-language parser for conversational patterns
+ * like "yeah", "nope", "took them", "forgot" (FR-WA-009).
  */
 export function parseStructuredAnswer(text: string): number | null {
   const lower = text.trim().toLowerCase();
 
+  // Strict matches first
   if (lower === 'yes' || lower === 'y') return 1;
   if (lower === 'no' || lower === 'n') return 0;
   if (lower === 'partial' || lower === 'p') return 0.5;
+
+  // Fallback to natural-language parser
+  const nlResult = parseNaturalStructured(text);
+  if (nlResult) {
+    return nlResult.value;
+  }
 
   return null;
 }

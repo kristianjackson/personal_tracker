@@ -116,7 +116,7 @@
   - Design: DD-001
   - Depends on: Task 22
 
-- [~] 24. Implement plain-language parser for common reply patterns: extract numbers from "slept 4 hours", "mood 4", "4/5", "pretty elevated maybe 4"; handle "skip"/"s"/"next"; detect medication names in "missed seroquel"
+- [x] 24. Implement plain-language parser for common reply patterns: extract numbers from "slept 4 hours", "mood 4", "4/5", "pretty elevated maybe 4"; handle "skip"/"s"/"next"; detect medication names in "missed seroquel"
   - Requirements: FR-WA-009
   - Design: Section 6.5
   - Depends on: Task 15
