@@ -46,7 +46,13 @@ import {
   getSideEffectSession,
 } from './side-effect-capture';
 import type { SideEffectCaptureEnv } from './side-effect-capture';
-import { localDateToday, parseCheckinDate, isCheckinDateError } from '@symptom-tracker/shared';
+import {
+  startInstrumentFlow,
+  processInstrumentResponse,
+  getInstrumentSession,
+} from './instrument-flow';
+import type { InstrumentFlowEnv } from './instrument-flow';
+import { localDateToday, parseCheckinDate, isCheckinDateError, isFeatureEnabled } from '@symptom-tracker/shared';
 
 /** Result of processing a single queue message. */
 interface ProcessingResult {
@@ -168,6 +174,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
   const medEnv: MedicationEventEnv = { DB: env.DB };
   const injEnv: InjectionFlowEnv = { DB: env.DB, KV: env.KV };
   const seEnv: SideEffectCaptureEnv = { DB: env.DB, KV: env.KV };
+  const instEnv: InstrumentFlowEnv = { DB: env.DB, KV: env.KV };
 
   // Check for active check-in session
   const activeSession = await getSession(env.KV, userId);
@@ -323,6 +330,24 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           msg: 'Side-effect response processed',
           completed: result.completed,
           savedCount: result.savedCount,
+        }),
+      );
+      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      return;
+    }
+
+    // Check for active instrument session (feature-flagged)
+    const activeInstrumentSession = await getInstrumentSession(env.KV, userId);
+    if (activeInstrumentSession) {
+      const result = await processInstrumentResponse(instEnv, userId, command.text);
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Instrument response processed',
+          completed: result.completed,
+          saved: result.saved,
         }),
       );
       // TODO: send result.messages back to user via WhatsApp API (task 25)

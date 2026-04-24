@@ -101,7 +101,7 @@
   - Design: Section 5.8
   - Depends on: Task 19
 
-- [~] 21. Implement weekly mania screener scaffold: feature-flagged instrument flow via WhatsApp, stores instrument_response with name, version, raw JSON responses, and calculated score
+- [x] 21. Implement weekly mania screener scaffold: feature-flagged instrument flow via WhatsApp, stores instrument_response with name, version, raw JSON responses, and calculated score
   - Requirements: FR-INST-001, FR-INST-002, FR-INST-004
   - Depends on: Task 15
   - Note: Deferrable to post-MVP
