@@ -1,0 +1,85 @@
+# ──────────────────────────────────────────────────────────────────────
+# Preview Deploy — Dashboard (Cloudflare Pages) + Worker API (dev env)
+# Runs on pull requests to main after CI checks pass.
+# ──────────────────────────────────────────────────────────────────────
+name: Preview Deploy
+
+on:
+  pull_request:
+    branches: [main]
+
+# Cancel stale preview deploys for the same PR.
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Gate: wait for CI to pass first ────────────────────────────────
+  ci:
+    name: CI checks
+    uses: ./.github/workflows/ci.yml
+
+  # ── Deploy dashboard preview to Cloudflare Pages ───────────────────
+  deploy-dashboard:
+    name: Deploy Dashboard Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: ci
+    permissions:
+      contents: read
+      pull-requests: write          # needed to post preview URL comment
+      deployments: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build dashboard
+        run: npm run build --workspace=apps/dashboard
+
+      - name: Deploy to Cloudflare Pages
+        id: pages-deploy
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: symptom-tracker-dashboard
+          directory: apps/dashboard/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}    # enables PR status check + comment
+
+  # ── Deploy worker-api preview to Cloudflare Workers dev env ────────
+  deploy-worker:
+    name: Deploy Worker API Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: ci
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Cloudflare Workers (dev)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/worker-api
+          command: deploy --env dev

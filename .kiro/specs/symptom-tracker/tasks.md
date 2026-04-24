@@ -14,7 +14,7 @@
   - Requirements: NFR-MNT-002, NFR-OPS-006
   - Depends on: Task 1
 
-- [ ] 4. Add CI pipeline (GitHub Actions) for lint, test, and preview deploys
+- [x] 4. Add CI pipeline (GitHub Actions) for lint, test, and preview deploys
   - Requirements: NFR-MNT-003
   - Depends on: Task 2
 
