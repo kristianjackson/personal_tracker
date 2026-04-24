@@ -61,7 +61,7 @@
 
 ## Milestone M2 — WhatsApp workflow engine
 
-- [ ] 13. Implement command router that parses inbound text for commands: `checkin`, `note:`, `inject`, `missed med`, `status`, `report month`, `tags`, `help`
+- [x] 13. Implement command router that parses inbound text for commands: `checkin`, `note:`, `inject`, `missed med`, `status`, `report month`, `tags`, `help`
   - Requirements: FR-WA-005, FR-WA-010
   - Design: Section 6.2
   - Depends on: Task 10, Task 11

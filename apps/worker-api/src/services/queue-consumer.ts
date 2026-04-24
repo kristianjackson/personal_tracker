@@ -16,6 +16,8 @@
 
 import type { QueueMessageType, InboundQueueMessage } from './queue-publisher';
 import type { Env } from '../index';
+import { parseCommand } from './command-router';
+import type { ParsedCommand } from './command-router';
 
 /** Result of processing a single queue message. */
 interface ProcessingResult {
@@ -30,15 +32,58 @@ interface ProcessingResult {
 // Each handler is a placeholder that will be replaced by real logic in
 // later tasks (13+). For now they just log receipt and return.
 
+/**
+ * Extract the user's text from a raw WhatsApp webhook payload.
+ *
+ * Returns null when the payload does not contain a text message
+ * (e.g. delivery status updates, media messages, etc.).
+ */
+export function extractTextFromPayload(rawBody: string): string | null {
+  try {
+    const payload = JSON.parse(rawBody);
+    const entry = payload?.entry?.[0];
+    const change = entry?.changes?.[0];
+    const messages = change?.value?.messages;
+    if (Array.isArray(messages) && messages.length > 0) {
+      const msg = messages[0];
+      if (msg.type === 'text' && typeof msg.text?.body === 'string') {
+        return msg.text.body;
+      }
+    }
+  } catch {
+    // Malformed JSON — fall through to null
+  }
+  return null;
+}
+
 async function handleInboundMessage(body: InboundQueueMessage): Promise<void> {
+  const text = extractTextFromPayload(body.rawBody);
+
+  if (text === null) {
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'Non-text message received — skipping command routing',
+      }),
+    );
+    return;
+  }
+
+  const command: ParsedCommand = parseCommand(text);
+
   console.log(
     JSON.stringify({
       level: 'info',
       handler: 'inbound-message',
       messageId: body.messageId,
-      msg: 'Processing inbound message (stub)',
+      commandType: command.type,
+      msg: 'Inbound message routed',
     }),
   );
+
+  // TODO: dispatch command to appropriate handler (tasks 14–26)
 }
 
 async function handleScheduledPrompt(body: InboundQueueMessage): Promise<void> {
