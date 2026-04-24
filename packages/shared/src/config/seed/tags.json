@@ -1,0 +1,9 @@
+[
+  { "name": "meds", "label": "Medications", "builtin": true },
+  { "name": "work", "label": "Work", "builtin": true },
+  { "name": "conflict", "label": "Conflict", "builtin": true },
+  { "name": "sleep", "label": "Sleep", "builtin": true },
+  { "name": "mood", "label": "Mood", "builtin": true },
+  { "name": "therapy", "label": "Therapy", "builtin": true },
+  { "name": "injection", "label": "Injection", "builtin": true }
+]

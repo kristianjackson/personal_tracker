@@ -1,0 +1,152 @@
+[
+  {
+    "variable_code": "DAT-001",
+    "prompt": "How many hours did you sleep?",
+    "type": "numeric",
+    "scale": null,
+    "unit": "hours",
+    "order": 0,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-002",
+    "prompt": "Sleep quality? (0=terrible, 5=great)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "terrible", "max": "great" } },
+    "unit": null,
+    "order": 1,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-003",
+    "prompt": "Mood today? (0=very low, 5=very elevated)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "very low", "max": "very elevated" } },
+    "unit": null,
+    "order": 2,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-004",
+    "prompt": "Energy level? (0=none, 5=wired)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "none", "max": "wired" } },
+    "unit": null,
+    "order": 3,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-005",
+    "prompt": "Irritability? (0=none, 5=extreme)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "none", "max": "extreme" } },
+    "unit": null,
+    "order": 4,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-006",
+    "prompt": "Anxiety/tension? (0=none, 5=extreme)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "none", "max": "extreme" } },
+    "unit": null,
+    "order": 5,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-007",
+    "prompt": "Focus/attention? (0=none, 5=laser)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "none", "max": "laser" } },
+    "unit": null,
+    "order": 6,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-008",
+    "prompt": "Racing thoughts? (0=none, 5=constant)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "none", "max": "constant" } },
+    "unit": null,
+    "order": 7,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-009",
+    "prompt": "Impulsivity/urge to act? (0=none, 5=extreme)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "none", "max": "extreme" } },
+    "unit": null,
+    "order": 8,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-010",
+    "prompt": "Risk-taking drive? (0=none, 5=extreme)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "none", "max": "extreme" } },
+    "unit": null,
+    "order": 9,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-011",
+    "prompt": "Interpersonal conflict? (0=none, 5=severe)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "none", "max": "severe" } },
+    "unit": null,
+    "order": 10,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-012",
+    "prompt": "Appetite? (0=none, 5=ravenous)",
+    "type": "ordinal",
+    "scale": { "min": 0, "max": 5, "labels": { "min": "none", "max": "ravenous" } },
+    "unit": null,
+    "order": 11,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-013",
+    "prompt": "Meds taken today? (yes/no/partial — which missed?)",
+    "type": "structured",
+    "scale": null,
+    "unit": null,
+    "order": 12,
+    "enabled": true,
+    "optional": false
+  },
+  {
+    "variable_code": "DAT-014",
+    "prompt": "Any side effects to note? (skip or describe)",
+    "type": "text",
+    "scale": null,
+    "unit": null,
+    "order": 13,
+    "enabled": true,
+    "optional": true
+  },
+  {
+    "variable_code": "DAT-015",
+    "prompt": "Anything else to note? (skip or type)",
+    "type": "text",
+    "scale": null,
+    "unit": null,
+    "order": 14,
+    "enabled": true,
+    "optional": true
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "key": "llm_summary",
+    "description": "Enable LLM-powered narrative summary generation (DD-006: off by default, deterministic first)",
+    "default_enabled": false
+  },
+  {
+    "key": "weekly_mania_screener",
+    "description": "Enable weekly mania screener instrument via WhatsApp (FR-INST-004: off until licensing approved)",
+    "default_enabled": false
+  },
+  {
+    "key": "natural_language_parser",
+    "description": "Enable enhanced plain-language reply parsing (FR-WA-009: start with strict numeric, enhance later)",
+    "default_enabled": false
+  },
+  {
+    "key": "retroactive_checkin",
+    "description": "Allow retroactive check-in entry for prior dates within 7-day lookback (FR-CAP-003)",
+    "default_enabled": false
+  },
+  {
+    "key": "medication_reminders",
+    "description": "Enable scheduled medication and injection reminder prompts (FR-MED-006)",
+    "default_enabled": false
+  },
+  {
+    "key": "clinician_summary_mode",
+    "description": "Enable clinician-friendly summary mode in dashboard (FR-DB-007)",
+    "default_enabled": false
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "daily-checkin",
+    "name": "Daily Check-in Prompt",
+    "type": "daily",
+    "default_time": "09:00",
+    "day_of_week": null,
+    "enabled": true
+  },
+  {
+    "id": "weekly-summary",
+    "name": "Weekly Summary Prompt",
+    "type": "weekly",
+    "default_time": "10:00",
+    "day_of_week": 0,
+    "enabled": true
+  }
+]

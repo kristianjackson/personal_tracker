@@ -18,7 +18,7 @@
   - Requirements: NFR-MNT-003
   - Depends on: Task 2
 
-- [ ] 5. Create seed config JSON files for symptom questions (0–5 ordinal scale), medication definitions (including Mounjaro with dose enum), predefined tags, prompt schedules, and feature flags
+- [x] 5. Create seed config JSON files for symptom questions (0–5 ordinal scale), medication definitions (including Mounjaro with dose enum), predefined tags, prompt schedules, and feature flags
   - Requirements: FR-ADM-001, FR-ADM-002, FR-ADM-003, FR-ADM-004, FR-MED-004, DD-008
   - Depends on: Task 2
 

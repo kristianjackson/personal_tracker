@@ -2,12 +2,38 @@
  * Shared configuration constants and types.
  *
  * Seed data (question packs, medication definitions, tags, schedules, feature flags)
- * will be loaded from JSON config files (Task 5). This module provides the type
- * contracts and any compile-time constants.
+ * are loaded from JSON config files via the seed module (DD-008).
  */
 
 export { validateEnv, assertEnv, WORKER_API_BINDINGS } from './env.js';
 export type { EnvValidationRule, EnvValidationResult } from './env.js';
+
+// Seed config types and loaders
+export {
+  getQuestions,
+  getEnabledQuestions,
+  getQuestionByCode,
+  getMedications,
+  getActiveMedications,
+  getMedicationByCode,
+  getTags,
+  getBuiltinTags,
+  getSchedules,
+  getEnabledSchedules,
+  getFeatureFlags,
+  isFeatureEnabled,
+  getSeedConfig,
+} from './seed/index.js';
+export type {
+  QuestionType,
+  QuestionDefinition,
+  MedicationRouteSeed,
+  MedicationDefinitionSeed,
+  TagDefinition,
+  PromptSchedule,
+  FeatureFlag,
+  SeedConfig,
+} from './seed/index.js';
 
 /** Mounjaro dose options in mg. */
 export const MOUNJARO_DOSES = [2.5, 5, 7.5, 10, 12.5, 15] as const;

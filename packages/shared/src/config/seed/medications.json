@@ -1,0 +1,38 @@
+[
+  {
+    "code": "mounjaro",
+    "display_name": "Mounjaro (tirzepatide)",
+    "route": "injection",
+    "dose_options": [2.5, 5, 7.5, 10, 12.5, 15],
+    "default_dose_value": 2.5,
+    "default_dose_unit": "mg",
+    "active": true
+  },
+  {
+    "code": "seroquel",
+    "display_name": "Seroquel (quetiapine)",
+    "route": "oral",
+    "dose_options": null,
+    "default_dose_value": null,
+    "default_dose_unit": "mg",
+    "active": true
+  },
+  {
+    "code": "lithium",
+    "display_name": "Lithium",
+    "route": "oral",
+    "dose_options": null,
+    "default_dose_value": null,
+    "default_dose_unit": "mg",
+    "active": true
+  },
+  {
+    "code": "lamotrigine",
+    "display_name": "Lamotrigine (Lamictal)",
+    "route": "oral",
+    "dose_options": null,
+    "default_dose_value": null,
+    "default_dose_unit": "mg",
+    "active": true
+  }
+]
