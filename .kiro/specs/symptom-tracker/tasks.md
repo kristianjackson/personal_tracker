@@ -71,7 +71,7 @@
   - Design: DD-009, Section 6.1
   - Depends on: Task 13
 
-- [ ] 15. Implement daily check-in question flow: 13 questions in order (sleep hours → sleep quality → mood → energy → irritability → anxiety → focus → racing thoughts → impulsivity → risk-drive → conflict → appetite → meds taken), plus optional side effects and note. Support "skip"/"s"/"next" to skip. Write completed check-in to D1 daily_checkin + symptom_observation rows.
+- [x] 15. Implement daily check-in question flow: 13 questions in order (sleep hours → sleep quality → mood → energy → irritability → anxiety → focus → racing thoughts → impulsivity → risk-drive → conflict → appetite → meds taken), plus optional side effects and note. Support "skip"/"s"/"next" to skip. Write completed check-in to D1 daily_checkin + symptom_observation rows.
   - Requirements: FR-WA-003, FR-CAP-001, FR-CAP-002
   - Design: Section 6.3
   - Depends on: Task 14
