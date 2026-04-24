@@ -122,7 +122,7 @@
   - Depends on: Task 15
   - Note: Deferrable — start with strict numeric parsing, enhance later
 
-- [~] 25. Add concise save confirmations after each persisted record (e.g. "✓ Check-in saved (11/13 answered)") and failure recovery messages when writes fail
+- [x] 25. Add concise save confirmations after each persisted record (e.g. "✓ Check-in saved (11/13 answered)") and failure recovery messages when writes fail
   - Requirements: FR-WA-010, NFR-OPS-004
   - Design: Section 6.1
   - Depends on: Task 15

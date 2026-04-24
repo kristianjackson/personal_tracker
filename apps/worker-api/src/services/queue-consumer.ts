@@ -53,7 +53,12 @@ import {
 } from './instrument-flow';
 import type { InstrumentFlowEnv } from './instrument-flow';
 import { processScheduledPrompt, recordInboundTimestamp } from './prompt-scheduler';
+import { sendMessages } from './whatsapp-sender';
+import type { WhatsAppSenderEnv } from './whatsapp-sender';
 import { localDateToday, parseCheckinDate, isCheckinDateError, isFeatureEnabled } from '@symptom-tracker/shared';
+
+/** Failure recovery message sent when a D1 write fails. */
+export const WRITE_FAILURE_MESSAGE = '⚠ Something went wrong saving your data. Please try again.';
 
 /** Result of processing a single queue message. */
 interface ProcessingResult {
@@ -64,9 +69,39 @@ interface ProcessingResult {
   error?: string;
 }
 
-// ── Stub handlers ───────────────────────────────────────────────────
-// Each handler is a placeholder that will be replaced by real logic in
-// later tasks (13+). For now they just log receipt and return.
+// ── Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Send response messages back to the user via WhatsApp.
+ *
+ * Logs send failures but does not throw — the command has already been
+ * processed and persisted, so a send failure should not trigger a queue
+ * retry of the entire message.
+ */
+async function replyToUser(
+  env: WhatsAppSenderEnv,
+  phone: string,
+  messages: string[],
+  messageId: string,
+): Promise<void> {
+  if (messages.length === 0) return;
+
+  const results = await sendMessages(env, phone, messages);
+  const failures = results.filter((r) => !r.success);
+
+  if (failures.length > 0) {
+    console.log(
+      JSON.stringify({
+        level: 'warn',
+        handler: 'inbound-message',
+        messageId,
+        msg: 'Some reply messages failed to send',
+        failedCount: failures.length,
+        totalCount: results.length,
+      }),
+    );
+  }
+}
 
 /**
  * Extract the user's text from a raw WhatsApp webhook payload.
@@ -203,14 +238,29 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           msg: 'Check-in date validation failed',
         }),
       );
-      // TODO: send dateResult.error back to user via WhatsApp API (task 25)
+      await replyToUser(env, phone, [dateResult.error], body.messageId);
       return;
     }
 
     const { date: checkinDate, isRetroactive } = dateResult;
 
     // Create session with retroactive flag if applicable
-    const result = await startCheckin(flowEnv, userId, checkinDate, isRetroactive);
+    let result;
+    try {
+      result = await startCheckin(flowEnv, userId, checkinDate, isRetroactive);
+    } catch (err) {
+      console.log(
+        JSON.stringify({
+          level: 'error',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Check-in start/resume failed',
+          error: err instanceof Error ? err.message : 'Unknown error',
+        }),
+      );
+      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      return;
+    }
     console.log(
       JSON.stringify({
         level: 'info',
@@ -221,12 +271,27 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         isRetroactive,
       }),
     );
-    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    await replyToUser(env, phone, result.messages, body.messageId);
     return;
   }
 
   if (command.type === 'note') {
-    const result = await handleNoteCommand(noteEnv, userId, command.text);
+    let result;
+    try {
+      result = await handleNoteCommand(noteEnv, userId, command.text);
+    } catch (err) {
+      console.log(
+        JSON.stringify({
+          level: 'error',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Note command failed',
+          error: err instanceof Error ? err.message : 'Unknown error',
+        }),
+      );
+      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      return;
+    }
     console.log(
       JSON.stringify({
         level: 'info',
@@ -236,12 +301,27 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         saved: result.saved,
       }),
     );
-    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    await replyToUser(env, phone, result.messages, body.messageId);
     return;
   }
 
   if (command.type === 'inject') {
-    const result = await startInjectionFlow(injEnv, userId);
+    let result;
+    try {
+      result = await startInjectionFlow(injEnv, userId);
+    } catch (err) {
+      console.log(
+        JSON.stringify({
+          level: 'error',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Injection flow start failed',
+          error: err instanceof Error ? err.message : 'Unknown error',
+        }),
+      );
+      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      return;
+    }
     console.log(
       JSON.stringify({
         level: 'info',
@@ -252,7 +332,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         saved: result.saved,
       }),
     );
-    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    await replyToUser(env, phone, result.messages, body.messageId);
     return;
   }
 
@@ -260,7 +340,22 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
     // Check for pending note tag confirmation before other sessions
     const pendingNote = await getPendingNote(env.KV, userId);
     if (pendingNote) {
-      const result = await handleTagConfirmation(noteEnv, userId, command.text);
+      let result;
+      try {
+        result = await handleTagConfirmation(noteEnv, userId, command.text);
+      } catch (err) {
+        console.log(
+          JSON.stringify({
+            level: 'error',
+            handler: 'inbound-message',
+            messageId: body.messageId,
+            msg: 'Tag confirmation failed',
+            error: err instanceof Error ? err.message : 'Unknown error',
+          }),
+        );
+        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        return;
+      }
       console.log(
         JSON.stringify({
           level: 'info',
@@ -270,7 +365,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           saved: result.saved,
         }),
       );
-      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      await replyToUser(env, phone, result.messages, body.messageId);
       return;
     }
 
@@ -283,7 +378,22 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         .first<{ timezone: string }>();
       const timezone = user?.timezone ?? 'UTC';
 
-      const result = await processInjectionResponse(injEnv, userId, command.text, timezone);
+      let result;
+      try {
+        result = await processInjectionResponse(injEnv, userId, command.text, timezone);
+      } catch (err) {
+        console.log(
+          JSON.stringify({
+            level: 'error',
+            handler: 'inbound-message',
+            messageId: body.messageId,
+            msg: 'Injection flow response failed',
+            error: err instanceof Error ? err.message : 'Unknown error',
+          }),
+        );
+        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        return;
+      }
       console.log(
         JSON.stringify({
           level: 'info',
@@ -314,18 +424,33 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
               msg: 'Side-effect capture started after injection',
             }),
           );
-          // TODO: send seResult.messages back to user via WhatsApp API (task 25)
+          await replyToUser(env, phone, seResult.messages, body.messageId);
         }
       }
 
-      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      await replyToUser(env, phone, result.messages, body.messageId);
       return;
     }
 
     // Check for active side-effect session
     const activeSideEffectSession = await getSideEffectSession(env.KV, userId);
     if (activeSideEffectSession) {
-      const result = await processSideEffectResponse(seEnv, userId, command.text);
+      let result;
+      try {
+        result = await processSideEffectResponse(seEnv, userId, command.text);
+      } catch (err) {
+        console.log(
+          JSON.stringify({
+            level: 'error',
+            handler: 'inbound-message',
+            messageId: body.messageId,
+            msg: 'Side-effect response failed',
+            error: err instanceof Error ? err.message : 'Unknown error',
+          }),
+        );
+        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        return;
+      }
       console.log(
         JSON.stringify({
           level: 'info',
@@ -336,14 +461,29 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           savedCount: result.savedCount,
         }),
       );
-      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      await replyToUser(env, phone, result.messages, body.messageId);
       return;
     }
 
     // Check for active instrument session (feature-flagged)
     const activeInstrumentSession = await getInstrumentSession(env.KV, userId);
     if (activeInstrumentSession) {
-      const result = await processInstrumentResponse(instEnv, userId, command.text);
+      let result;
+      try {
+        result = await processInstrumentResponse(instEnv, userId, command.text);
+      } catch (err) {
+        console.log(
+          JSON.stringify({
+            level: 'error',
+            handler: 'inbound-message',
+            messageId: body.messageId,
+            msg: 'Instrument response failed',
+            error: err instanceof Error ? err.message : 'Unknown error',
+          }),
+        );
+        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        return;
+      }
       console.log(
         JSON.stringify({
           level: 'info',
@@ -354,13 +494,28 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           saved: result.saved,
         }),
       );
-      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      await replyToUser(env, phone, result.messages, body.messageId);
       return;
     }
 
     if (activeSession) {
       // Process as an answer to the current check-in question
-      const result = await processAnswer(flowEnv, userId, command.text);
+      let result;
+      try {
+        result = await processAnswer(flowEnv, userId, command.text);
+      } catch (err) {
+        console.log(
+          JSON.stringify({
+            level: 'error',
+            handler: 'inbound-message',
+            messageId: body.messageId,
+            msg: 'Check-in answer processing failed',
+            error: err instanceof Error ? err.message : 'Unknown error',
+          }),
+        );
+        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        return;
+      }
       console.log(
         JSON.stringify({
           level: 'info',
@@ -370,7 +525,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           completed: result.completed,
         }),
       );
-      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      await replyToUser(env, phone, result.messages, body.messageId);
       return;
     }
   }
@@ -378,7 +533,22 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
   if (command.type === 'missed_med') {
     if (command.medicationName === null) {
       // Generic "missed med" — list active medications
-      const result = await handleMissedMedGeneric(medEnv, userId);
+      let result;
+      try {
+        result = await handleMissedMedGeneric(medEnv, userId);
+      } catch (err) {
+        console.log(
+          JSON.stringify({
+            level: 'error',
+            handler: 'inbound-message',
+            messageId: body.messageId,
+            msg: 'Missed med (generic) failed',
+            error: err instanceof Error ? err.message : 'Unknown error',
+          }),
+        );
+        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        return;
+      }
       console.log(
         JSON.stringify({
           level: 'info',
@@ -388,7 +558,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           saved: result.saved,
         }),
       );
-      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      await replyToUser(env, phone, result.messages, body.messageId);
       return;
     }
 
@@ -399,7 +569,22 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
       .first<{ timezone: string }>();
     const timezone = user?.timezone ?? 'UTC';
 
-    const result = await handleMissedMedSpecific(medEnv, userId, command.medicationName, timezone);
+    let result;
+    try {
+      result = await handleMissedMedSpecific(medEnv, userId, command.medicationName, timezone);
+    } catch (err) {
+      console.log(
+        JSON.stringify({
+          level: 'error',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Missed med (specific) failed',
+          error: err instanceof Error ? err.message : 'Unknown error',
+        }),
+      );
+      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      return;
+    }
     console.log(
       JSON.stringify({
         level: 'info',
@@ -409,7 +594,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         saved: result.saved,
       }),
     );
-    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    await replyToUser(env, phone, result.messages, body.messageId);
     return;
   }
 
@@ -420,7 +605,22 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
       .first<{ timezone: string }>();
     const timezone = user?.timezone ?? 'UTC';
 
-    const result = await handleTookMed(medEnv, userId, command.medicationName, timezone);
+    let result;
+    try {
+      result = await handleTookMed(medEnv, userId, command.medicationName, timezone);
+    } catch (err) {
+      console.log(
+        JSON.stringify({
+          level: 'error',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Took med failed',
+          error: err instanceof Error ? err.message : 'Unknown error',
+        }),
+      );
+      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      return;
+    }
     console.log(
       JSON.stringify({
         level: 'info',
@@ -430,7 +630,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         saved: result.saved,
       }),
     );
-    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    await replyToUser(env, phone, result.messages, body.messageId);
     return;
   }
 
