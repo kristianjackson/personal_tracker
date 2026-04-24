@@ -86,7 +86,7 @@
   - Depends on: Task 15
   - Note: Deferrable to post-MVP
 
-- [~] 18. Implement medication event logging: `missed med` and `missed <med-name>` commands create medication_event records with event_type=missed; `took <med-name>` creates event_type=taken
+- [x] 18. Implement medication event logging: `missed med` and `missed <med-name>` commands create medication_event records with event_type=missed; `took <med-name>` creates event_type=taken
   - Requirements: FR-MED-001, FR-MED-005
   - Design: Section 5.7
   - Depends on: Task 13

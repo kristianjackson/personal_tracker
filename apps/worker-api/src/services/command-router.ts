@@ -19,6 +19,7 @@ export type CommandType =
   | 'note'
   | 'inject'
   | 'missed_med'
+  | 'took_med'
   | 'status'
   | 'report_month'
   | 'tags'
@@ -53,6 +54,12 @@ export interface MissedMedCommand extends BaseCommand {
   medicationName: string | null;
 }
 
+export interface TookMedCommand extends BaseCommand {
+  type: 'took_med';
+  /** Medication name extracted from the message. */
+  medicationName: string;
+}
+
 export interface StatusCommand extends BaseCommand {
   type: 'status';
 }
@@ -80,6 +87,7 @@ export type ParsedCommand =
   | NoteCommand
   | InjectCommand
   | MissedMedCommand
+  | TookMedCommand
   | StatusCommand
   | ReportMonthCommand
   | TagsCommand
@@ -119,6 +127,14 @@ export function parseCommand(rawText: string): ParsedCommand {
     // "missed med" → no specific medication
     const medicationName = afterMissedLower === 'med' ? null : afterMissed || null;
     return { type: 'missed_med', medicationName, raw: trimmed };
+  }
+
+  // took <med-name>
+  if (lower.startsWith('took ')) {
+    const afterTook = trimmed.slice('took '.length).trim();
+    if (afterTook.length > 0) {
+      return { type: 'took_med', medicationName: afterTook, raw: trimmed };
+    }
   }
 
   // checkin — with optional date argument

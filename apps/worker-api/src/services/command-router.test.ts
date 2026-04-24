@@ -4,6 +4,7 @@ import type {
   CheckinCommand,
   NoteCommand,
   MissedMedCommand,
+  TookMedCommand,
   MessageCommand,
 } from './command-router';
 
@@ -148,6 +149,38 @@ describe('missed med command', () => {
 });
 
 // ── status ──────────────────────────────────────────────────────────
+
+describe('took med command', () => {
+  it('parses "took seroquel" as a took_med command', () => {
+    const result = parseCommand('took seroquel') as TookMedCommand;
+    expect(result.type).toBe('took_med');
+    expect(result.medicationName).toBe('seroquel');
+  });
+
+  it('is case-insensitive for the prefix', () => {
+    const result = parseCommand('TOOK Seroquel') as TookMedCommand;
+    expect(result.type).toBe('took_med');
+    expect(result.medicationName).toBe('Seroquel');
+  });
+
+  it('preserves medication name casing', () => {
+    const result = parseCommand('took Lithium') as TookMedCommand;
+    expect(result.type).toBe('took_med');
+    expect(result.medicationName).toBe('Lithium');
+  });
+
+  it('handles multi-word medication names', () => {
+    const result = parseCommand('took lithium carbonate') as TookMedCommand;
+    expect(result.type).toBe('took_med');
+    expect(result.medicationName).toBe('lithium carbonate');
+  });
+
+  it('falls through to message when no med name given', () => {
+    // "took" alone without a medication name should be a message
+    const result = parseCommand('took');
+    expect(result.type).toBe('message');
+  });
+});
 
 describe('status command', () => {
   it('parses "status" as a status command', () => {

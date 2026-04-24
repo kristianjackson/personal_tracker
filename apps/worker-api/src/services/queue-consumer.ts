@@ -28,6 +28,12 @@ import {
   getPendingNote,
 } from './note-capture';
 import type { NoteCaptureEnv } from './note-capture';
+import {
+  handleMissedMedGeneric,
+  handleMissedMedSpecific,
+  handleTookMed,
+} from './medication-event';
+import type { MedicationEventEnv } from './medication-event';
 import { localDateToday, parseCheckinDate, isCheckinDateError } from '@symptom-tracker/shared';
 
 /** Result of processing a single queue message. */
@@ -147,6 +153,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
 
   const flowEnv: CheckinFlowEnv = { DB: env.DB, KV: env.KV };
   const noteEnv: NoteCaptureEnv = { DB: env.DB, KV: env.KV };
+  const medEnv: MedicationEventEnv = { DB: env.DB };
 
   // Check for active check-in session
   const activeSession = await getSession(env.KV, userId);
@@ -241,6 +248,65 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
       // TODO: send result.messages back to user via WhatsApp API (task 25)
       return;
     }
+  }
+
+  if (command.type === 'missed_med') {
+    if (command.medicationName === null) {
+      // Generic "missed med" — list active medications
+      const result = await handleMissedMedGeneric(medEnv, userId);
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Missed med (generic) processed',
+          saved: result.saved,
+        }),
+      );
+      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      return;
+    }
+
+    // Specific "missed <med-name>"
+    const user = await env.DB
+      .prepare('SELECT timezone FROM user WHERE id = ?')
+      .bind(userId)
+      .first<{ timezone: string }>();
+    const timezone = user?.timezone ?? 'UTC';
+
+    const result = await handleMissedMedSpecific(medEnv, userId, command.medicationName, timezone);
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'Missed med (specific) processed',
+        saved: result.saved,
+      }),
+    );
+    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    return;
+  }
+
+  if (command.type === 'took_med') {
+    const user = await env.DB
+      .prepare('SELECT timezone FROM user WHERE id = ?')
+      .bind(userId)
+      .first<{ timezone: string }>();
+    const timezone = user?.timezone ?? 'UTC';
+
+    const result = await handleTookMed(medEnv, userId, command.medicationName, timezone);
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'Took med processed',
+        saved: result.saved,
+      }),
+    );
+    // TODO: send result.messages back to user via WhatsApp API (task 25)
+    return;
   }
 
   // Other commands (help, inject, etc.) — stubs for future tasks
