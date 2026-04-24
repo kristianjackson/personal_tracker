@@ -127,7 +127,7 @@
   - Design: Section 6.1
   - Depends on: Task 15
 
-- [~] 26. Add configurable question packs: load check-in questions from seed config JSON, support reordering and disabling questions. Add custom tag creation via `tags add <name>` command.
+- [x] 26. Add configurable question packs: load check-in questions from seed config JSON, support reordering and disabling questions. Add custom tag creation via `tags add <name>` command.
   - Requirements: FR-ADM-002, FR-ADM-003, FR-CAP-007
   - Design: DD-008
   - Depends on: Task 5, Task 15

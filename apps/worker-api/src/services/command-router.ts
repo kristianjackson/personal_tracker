@@ -23,6 +23,7 @@ export type CommandType =
   | 'status'
   | 'report_month'
   | 'tags'
+  | 'tags_add'
   | 'help'
   | 'message';
 
@@ -72,6 +73,12 @@ export interface TagsCommand extends BaseCommand {
   type: 'tags';
 }
 
+export interface TagsAddCommand extends BaseCommand {
+  type: 'tags_add';
+  /** The tag name to create. */
+  tagName: string;
+}
+
 export interface HelpCommand extends BaseCommand {
   type: 'help';
 }
@@ -91,6 +98,7 @@ export type ParsedCommand =
   | StatusCommand
   | ReportMonthCommand
   | TagsCommand
+  | TagsAddCommand
   | HelpCommand
   | MessageCommand;
 
@@ -154,8 +162,16 @@ export function parseCommand(rawText: string): ParsedCommand {
     return { type: 'status', raw: trimmed };
   }
 
+  // tags add <name> — must check before plain "tags"
+  if (lower.startsWith('tags add ')) {
+    const tagName = trimmed.slice('tags add '.length).trim();
+    if (tagName.length > 0) {
+      return { type: 'tags_add', tagName, raw: trimmed };
+    }
+  }
+
   // tags
-  if (lower === 'tags') {
+  if (lower === 'tags' || lower === 'tags list') {
     return { type: 'tags', raw: trimmed };
   }
 

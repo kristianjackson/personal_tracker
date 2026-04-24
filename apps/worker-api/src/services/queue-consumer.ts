@@ -52,6 +52,11 @@ import {
   getInstrumentSession,
 } from './instrument-flow';
 import type { InstrumentFlowEnv } from './instrument-flow';
+import {
+  handleTagsAdd,
+  handleTagsList,
+} from './tag-management';
+import type { TagManagementEnv } from './tag-management';
 import { processScheduledPrompt, recordInboundTimestamp } from './prompt-scheduler';
 import { sendMessages } from './whatsapp-sender';
 import type { WhatsAppSenderEnv } from './whatsapp-sender';
@@ -214,6 +219,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
   const injEnv: InjectionFlowEnv = { DB: env.DB, KV: env.KV };
   const seEnv: SideEffectCaptureEnv = { DB: env.DB, KV: env.KV };
   const instEnv: InstrumentFlowEnv = { DB: env.DB, KV: env.KV };
+  const tagEnv: TagManagementEnv = { KV: env.KV };
 
   // Check for active check-in session
   const activeSession = await getSession(env.KV, userId);
@@ -528,6 +534,65 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
       await replyToUser(env, phone, result.messages, body.messageId);
       return;
     }
+  }
+
+  if (command.type === 'tags_add') {
+    let result;
+    try {
+      result = await handleTagsAdd(tagEnv, command.tagName);
+    } catch (err) {
+      console.log(
+        JSON.stringify({
+          level: 'error',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Tags add command failed',
+          error: err instanceof Error ? err.message : 'Unknown error',
+        }),
+      );
+      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      return;
+    }
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'Tags add command processed',
+        created: result.created,
+      }),
+    );
+    await replyToUser(env, phone, result.messages, body.messageId);
+    return;
+  }
+
+  if (command.type === 'tags') {
+    let result;
+    try {
+      result = await handleTagsList(tagEnv);
+    } catch (err) {
+      console.log(
+        JSON.stringify({
+          level: 'error',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Tags list command failed',
+          error: err instanceof Error ? err.message : 'Unknown error',
+        }),
+      );
+      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      return;
+    }
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        handler: 'inbound-message',
+        messageId: body.messageId,
+        msg: 'Tags list command processed',
+      }),
+    );
+    await replyToUser(env, phone, result.messages, body.messageId);
+    return;
   }
 
   if (command.type === 'missed_med') {

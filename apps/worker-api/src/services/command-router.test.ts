@@ -5,6 +5,7 @@ import type {
   NoteCommand,
   MissedMedCommand,
   TookMedCommand,
+  TagsAddCommand,
   MessageCommand,
 } from './command-router';
 
@@ -231,8 +232,37 @@ describe('tags command', () => {
     expect(result.type).toBe('tags');
   });
 
-  it('does not match "tags add mood" (exact match only)', () => {
-    const result = parseCommand('tags add mood');
+  it('parses "tags list" as a tags command', () => {
+    const result = parseCommand('tags list');
+    expect(result.type).toBe('tags');
+  });
+
+  it('parses "tags add mood" as a tags_add command', () => {
+    const result = parseCommand('tags add exercise') as TagsAddCommand;
+    expect(result.type).toBe('tags_add');
+    expect(result.tagName).toBe('exercise');
+  });
+
+  it('parses "tags add" with multi-word name (takes first word)', () => {
+    const result = parseCommand('tags add self-care') as TagsAddCommand;
+    expect(result.type).toBe('tags_add');
+    expect(result.tagName).toBe('self-care');
+  });
+
+  it('is case-insensitive for tags add prefix', () => {
+    const result = parseCommand('TAGS ADD exercise') as TagsAddCommand;
+    expect(result.type).toBe('tags_add');
+    expect(result.tagName).toBe('exercise');
+  });
+
+  it('preserves tag name casing in raw', () => {
+    const result = parseCommand('tags add Exercise') as TagsAddCommand;
+    expect(result.type).toBe('tags_add');
+    expect(result.tagName).toBe('Exercise');
+  });
+
+  it('falls through to message for "tags something" that is not "add" or "list"', () => {
+    const result = parseCommand('tags remove mood');
     expect(result.type).toBe('message');
   });
 });
