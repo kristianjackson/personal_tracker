@@ -76,7 +76,7 @@
   - Design: Section 6.3
   - Depends on: Task 14
 
-- [ ] 16. Implement freeform note capture: parse `note: <text>` command, store in note table with body (max 4000 chars), auto-suggest tags from predefined list based on keyword matching, allow user to confirm/edit tags
+- [x] 16. Implement freeform note capture: parse `note: <text>` command, store in note table with body (max 4000 chars), auto-suggest tags from predefined list based on keyword matching, allow user to confirm/edit tags
   - Requirements: FR-WA-004, FR-CAP-005, FR-CAP-006
   - Design: Section 5.5
   - Depends on: Task 13

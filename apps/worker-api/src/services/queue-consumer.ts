@@ -22,6 +22,12 @@ import { findBindingByPhone } from './whatsapp-binding';
 import { getSession } from './checkin-session';
 import { startCheckin, processAnswer } from './checkin-flow';
 import type { CheckinFlowEnv } from './checkin-flow';
+import {
+  handleNoteCommand,
+  handleTagConfirmation,
+  getPendingNote,
+} from './note-capture';
+import type { NoteCaptureEnv } from './note-capture';
 import { localDateToday } from '@symptom-tracker/shared';
 
 /** Result of processing a single queue message. */
@@ -140,6 +146,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
   );
 
   const flowEnv: CheckinFlowEnv = { DB: env.DB, KV: env.KV };
+  const noteEnv: NoteCaptureEnv = { DB: env.DB, KV: env.KV };
 
   // Check for active check-in session
   const activeSession = await getSession(env.KV, userId);
@@ -168,23 +175,57 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
     return;
   }
 
-  if (command.type === 'message' && activeSession) {
-    // Process as an answer to the current check-in question
-    const result = await processAnswer(flowEnv, userId, command.text);
+  if (command.type === 'note') {
+    const result = await handleNoteCommand(noteEnv, userId, command.text);
     console.log(
       JSON.stringify({
         level: 'info',
         handler: 'inbound-message',
         messageId: body.messageId,
-        msg: 'Check-in answer processed',
-        completed: result.completed,
+        msg: 'Note command processed',
+        saved: result.saved,
       }),
     );
     // TODO: send result.messages back to user via WhatsApp API (task 25)
     return;
   }
 
-  // Other commands (help, inject, note, etc.) — stubs for future tasks
+  if (command.type === 'message') {
+    // Check for pending note tag confirmation before check-in session
+    const pendingNote = await getPendingNote(env.KV, userId);
+    if (pendingNote) {
+      const result = await handleTagConfirmation(noteEnv, userId, command.text);
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Tag confirmation processed',
+          saved: result.saved,
+        }),
+      );
+      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      return;
+    }
+
+    if (activeSession) {
+      // Process as an answer to the current check-in question
+      const result = await processAnswer(flowEnv, userId, command.text);
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Check-in answer processed',
+          completed: result.completed,
+        }),
+      );
+      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      return;
+    }
+  }
+
+  // Other commands (help, inject, etc.) — stubs for future tasks
   // If a session is active, these commands don't lose the session
   console.log(
     JSON.stringify({
