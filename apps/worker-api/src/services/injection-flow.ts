@@ -542,8 +542,15 @@ async function completeInjectionFlow(
 
   const confirmation = `✓ Mounjaro ${session.doseValue}mg logged at ${timeDisplay}, ${session.injectionSite}. ${watchStatus}`;
 
+  const messages = [confirmation];
+
+  // If watch opted in, signal that side-effect capture should start
+  if (session.watchOptIn) {
+    messages.push('__START_SIDE_EFFECT_CAPTURE__');
+  }
+
   return {
-    messages: [confirmation],
+    messages,
     completed: true,
     saved: true,
   };

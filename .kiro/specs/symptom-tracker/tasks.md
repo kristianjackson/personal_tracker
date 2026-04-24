@@ -96,7 +96,7 @@
   - Design: Section 6.4
   - Depends on: Task 18
 
-- [~] 20. Implement side-effect capture: after injection (and during 72h watch follow-ups), prompt for nausea/diarrhea/vomiting/constipation/abdominal pain/hydration difficulty/appetite suppression on 0–5 scale. Store as side_effect_observation linked to nearest medication_event within 72h window.
+- [x] 20. Implement side-effect capture: after injection (and during 72h watch follow-ups), prompt for nausea/diarrhea/vomiting/constipation/abdominal pain/hydration difficulty/appetite suppression on 0–5 scale. Store as side_effect_observation linked to nearest medication_event within 72h window.
   - Requirements: FR-MED-003, DAT-024–DAT-030
   - Design: Section 5.8
   - Depends on: Task 19

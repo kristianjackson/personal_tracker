@@ -40,6 +40,12 @@ import {
   getInjectionSession,
 } from './injection-flow';
 import type { InjectionFlowEnv } from './injection-flow';
+import {
+  startSideEffectCapture,
+  processSideEffectResponse,
+  getSideEffectSession,
+} from './side-effect-capture';
+import type { SideEffectCaptureEnv } from './side-effect-capture';
 import { localDateToday, parseCheckinDate, isCheckinDateError } from '@symptom-tracker/shared';
 
 /** Result of processing a single queue message. */
@@ -161,6 +167,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
   const noteEnv: NoteCaptureEnv = { DB: env.DB, KV: env.KV };
   const medEnv: MedicationEventEnv = { DB: env.DB };
   const injEnv: InjectionFlowEnv = { DB: env.DB, KV: env.KV };
+  const seEnv: SideEffectCaptureEnv = { DB: env.DB, KV: env.KV };
 
   // Check for active check-in session
   const activeSession = await getSession(env.KV, userId);
@@ -274,6 +281,48 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           msg: 'Injection flow response processed',
           completed: result.completed,
           saved: result.saved,
+        }),
+      );
+
+      // If injection completed with watch opt-in, start side-effect capture
+      if (result.completed && result.saved) {
+        const hasSideEffectSignal = result.messages.some(
+          (m) => m === '__START_SIDE_EFFECT_CAPTURE__',
+        );
+        if (hasSideEffectSignal) {
+          // Remove the internal signal from messages
+          result.messages = result.messages.filter(
+            (m) => m !== '__START_SIDE_EFFECT_CAPTURE__',
+          );
+          const seResult = await startSideEffectCapture(seEnv, userId, timezone);
+          console.log(
+            JSON.stringify({
+              level: 'info',
+              handler: 'inbound-message',
+              messageId: body.messageId,
+              msg: 'Side-effect capture started after injection',
+            }),
+          );
+          // TODO: send seResult.messages back to user via WhatsApp API (task 25)
+        }
+      }
+
+      // TODO: send result.messages back to user via WhatsApp API (task 25)
+      return;
+    }
+
+    // Check for active side-effect session
+    const activeSideEffectSession = await getSideEffectSession(env.KV, userId);
+    if (activeSideEffectSession) {
+      const result = await processSideEffectResponse(seEnv, userId, command.text);
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          handler: 'inbound-message',
+          messageId: body.messageId,
+          msg: 'Side-effect response processed',
+          completed: result.completed,
+          savedCount: result.savedCount,
         }),
       );
       // TODO: send result.messages back to user via WhatsApp API (task 25)
