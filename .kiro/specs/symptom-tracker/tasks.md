@@ -54,7 +54,7 @@
   - Design: Section 5.2
   - Depends on: Task 6
 
-- [ ] 12. Implement audit_event table and writer utility (action types: login, export, config_change, delete, summary_generate, flag_dismiss)
+- [x] 12. Implement audit_event table and writer utility (action types: login, export, config_change, delete, summary_generate, flag_dismiss)
   - Requirements: NFR-SEC-008
   - Design: Section 5.13, 9.5
   - Depends on: Task 6
