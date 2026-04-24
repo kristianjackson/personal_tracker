@@ -66,7 +66,7 @@
   - Design: Section 6.2
   - Depends on: Task 10, Task 11
 
-- [ ] 14. Implement check-in session state in KV (4-hour TTL) with resume logic: store current question index, partial answers, session start time; resume from last unanswered question
+- [x] 14. Implement check-in session state in KV (4-hour TTL) with resume logic: store current question index, partial answers, session start time; resume from last unanswered question
   - Requirements: FR-WA-006
   - Design: DD-009, Section 6.1
   - Depends on: Task 13
