@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { webhook } from './routes/webhook';
+import { accessAuth } from './middleware/access-auth';
 import { handleQueueBatch } from './services/queue-consumer';
 import { handleScheduledEvent } from './services/prompt-scheduler';
 
@@ -17,6 +18,10 @@ export interface Env {
   // ── Environment variables (wrangler.toml [vars]) ──
   ENVIRONMENT: string;
 
+  // ── Cloudflare Access configuration (wrangler.toml [vars]) ──
+  CF_ACCESS_TEAM_DOMAIN: string;
+  CF_ACCESS_AUD: string;
+
   // ── Secrets (set via `wrangler secret put`) ──
   WHATSAPP_API_TOKEN: string;
   WHATSAPP_PHONE_NUMBER_ID: string;
@@ -24,14 +29,25 @@ export interface Env {
   META_APP_SECRET: string;
 }
 
-export const app = new Hono<{ Bindings: Env }>();
+export const app = new Hono<{ Bindings: Env; Variables: { userEmail: string } }>();
+
+// ── Public routes (no auth required) ────────────────────────────────
 
 app.get('/health', (c) => {
   return c.json({ status: 'ok' });
 });
 
-// Mount webhook routes
+// Mount webhook routes (authenticated by Meta's webhook verification, not Access)
 app.route('/webhook', webhook);
+
+// ── Protected API routes (Cloudflare Access JWT required) ───────────
+
+const api = new Hono<{ Bindings: Env; Variables: { userEmail: string } }>();
+api.use('*', accessAuth);
+
+// Task 29 will add API endpoints here (GET /api/checkins, /api/notes, etc.)
+
+app.route('/api', api);
 
 export default {
   fetch: app.fetch,

@@ -52,6 +52,8 @@ function mockEnv(overrides: Partial<Env> = {}): Env {
     WHATSAPP_PHONE_NUMBER_ID: '123456',
     WHATSAPP_VERIFY_TOKEN: 'verify-token',
     META_APP_SECRET: 'app-secret',
+    CF_ACCESS_TEAM_DOMAIN: 'test.cloudflareaccess.com',
+    CF_ACCESS_AUD: 'test-aud',
     ...overrides,
   };
 }

@@ -139,7 +139,7 @@
   - Design: Section 2.1
   - Depends on: Task 1
 
-- [ ] 28. Protect dashboard with Cloudflare Access: configure Access policy for single allowed email, validate Access JWT on all API requests
+- [x] 28. Protect dashboard with Cloudflare Access: configure Access policy for single allowed email, validate Access JWT on all API requests
   - Requirements: NFR-SEC-001
   - Design: DD-005, Section 9.2
   - Depends on: Task 27

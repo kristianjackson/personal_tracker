@@ -70,6 +70,8 @@ crons = [
 
 [env.dev.vars]
 ENVIRONMENT = "dev"
+CF_ACCESS_TEAM_DOMAIN = "<YOUR_TEAM_DOMAIN>"
+CF_ACCESS_AUD = "<YOUR_ACCESS_AUD_TAG>"
 
 [[env.dev.d1_databases]]
 binding = "DB"
@@ -103,6 +105,8 @@ dead_letter_queue = "symptom-tracker-dev-dlq"
 
 [env.production.vars]
 ENVIRONMENT = "production"
+CF_ACCESS_TEAM_DOMAIN = "<YOUR_TEAM_DOMAIN>"
+CF_ACCESS_AUD = "<YOUR_ACCESS_AUD_TAG>"
 
 [[env.production.d1_databases]]
 binding = "DB"
