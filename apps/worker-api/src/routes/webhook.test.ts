@@ -19,15 +19,22 @@ function mockBucket() {
   } as unknown as R2Bucket;
 }
 
-function mockEnv(bucket?: R2Bucket) {
+function mockEnv(bucket?: R2Bucket, queue?: Queue) {
   return {
     WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN,
     ENVIRONMENT: 'test',
     DB: {} as D1Database,
-    QUEUE: {} as Queue,
+    QUEUE: queue ?? mockQueue(),
     BUCKET: bucket ?? mockBucket(),
     KV: {} as KVNamespace,
   };
+}
+
+/** Create a mock Queue binding with a send() method. */
+function mockQueue() {
+  return {
+    send: vi.fn(async () => undefined),
+  } as unknown as Queue;
 }
 
 /**
@@ -151,6 +158,7 @@ describe('POST /webhook — Inbound message reception', () => {
     };
 
     const bucket = mockBucket();
+    const queue = mockQueue();
     const { ctx, flush } = mockExecutionCtx();
 
     const res = await app.request(
@@ -160,14 +168,14 @@ describe('POST /webhook — Inbound message reception', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-      mockEnv(bucket),
+      mockEnv(bucket, queue),
       ctx,
     );
 
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('EVENT_RECEIVED');
 
-    // Wait for background R2 storage to complete
+    // Wait for background R2 storage and queue publish to complete
     await flush();
 
     // Verify R2 storage was triggered
@@ -177,6 +185,14 @@ describe('POST /webhook — Inbound message reception', () => {
     // Verify the key contains the message_id
     const putKey = (bucket.put as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(putKey).toContain('wamid.test123');
+
+    // Verify queue publish was triggered
+    expect(queue.send).toHaveBeenCalledOnce();
+    const sentMessage = (queue.send as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(sentMessage.type).toBe('inbound-message');
+    expect(sentMessage.messageId).toBe('wamid.test123');
+    expect(sentMessage.rawBody).toBe(JSON.stringify(payload));
+    expect(sentMessage.timestamp).toBeDefined();
   });
 
   it('returns 200 quickly (fast-ack pattern)', async () => {
@@ -218,6 +234,7 @@ describe('POST /webhook — Inbound message reception', () => {
     };
 
     const bucket = mockBucket();
+    const queue = mockQueue();
     const { ctx, flush } = mockExecutionCtx();
 
     await app.request(
@@ -227,7 +244,7 @@ describe('POST /webhook — Inbound message reception', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-      mockEnv(bucket),
+      mockEnv(bucket, queue),
       ctx,
     );
 
@@ -268,6 +285,7 @@ describe('POST /webhook — Inbound message reception', () => {
       put: vi.fn(async () => undefined),
     } as unknown as R2Bucket;
 
+    const queue = mockQueue();
     const { ctx, flush } = mockExecutionCtx();
 
     const res = await app.request(
@@ -277,7 +295,7 @@ describe('POST /webhook — Inbound message reception', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-      mockEnv(bucket),
+      mockEnv(bucket, queue),
       ctx,
     );
 
@@ -287,6 +305,9 @@ describe('POST /webhook — Inbound message reception', () => {
     // head was called but put was NOT called (dedup)
     expect(bucket.head).toHaveBeenCalledOnce();
     expect(bucket.put).not.toHaveBeenCalled();
+
+    // Queue publish still happens (dedup is R2-only; queue consumer handles its own dedup)
+    expect(queue.send).toHaveBeenCalledOnce();
   });
 
   it('returns 200 even when R2 storage fails', async () => {
@@ -314,6 +335,7 @@ describe('POST /webhook — Inbound message reception', () => {
       put: vi.fn(),
     } as unknown as R2Bucket;
 
+    const queue = mockQueue();
     const { ctx, flush } = mockExecutionCtx();
 
     // Suppress console.error during this test
@@ -326,7 +348,7 @@ describe('POST /webhook — Inbound message reception', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-      mockEnv(bucket),
+      mockEnv(bucket, queue),
       ctx,
     );
 
@@ -341,6 +363,9 @@ describe('POST /webhook — Inbound message reception', () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       'R2 storage failed for webhook payload',
     );
+
+    // Queue publish still succeeded independently
+    expect(queue.send).toHaveBeenCalledOnce();
 
     consoleSpy.mockRestore();
   });
@@ -364,6 +389,7 @@ describe('POST /webhook — Inbound message reception', () => {
     };
 
     const bucket = mockBucket();
+    const queue = mockQueue();
     const { ctx, flush } = mockExecutionCtx();
 
     const res = await app.request(
@@ -373,7 +399,7 @@ describe('POST /webhook — Inbound message reception', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-      mockEnv(bucket),
+      mockEnv(bucket, queue),
       ctx,
     );
 
@@ -384,5 +410,174 @@ describe('POST /webhook — Inbound message reception', () => {
     expect(bucket.put).toHaveBeenCalledOnce();
     const putKey = (bucket.put as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(putKey).toContain('status-status-entry-555');
+
+    // Queue was also published with the same fallback message_id
+    expect(queue.send).toHaveBeenCalledOnce();
+    const sentMessage = (queue.send as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(sentMessage.type).toBe('inbound-message');
+    expect(sentMessage.messageId).toContain('status-status-entry-555');
+  });
+
+  it('returns 200 even when queue publish fails', async () => {
+    const payload = {
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: '333',
+          changes: [
+            {
+              value: {
+                messages: [{ id: 'wamid.qfail', type: 'text', text: { body: 'test' } }],
+              },
+              field: 'messages',
+            },
+          ],
+        },
+      ],
+    };
+
+    const bucket = mockBucket();
+    const queue = {
+      send: vi.fn(async () => {
+        throw new Error('Queue unavailable');
+      }),
+    } as unknown as Queue;
+
+    const { ctx, flush } = mockExecutionCtx();
+
+    // Suppress console.error during this test
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const res = await app.request(
+      'http://localhost/webhook',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      mockEnv(bucket, queue),
+      ctx,
+    );
+
+    // Response is 200 regardless of queue failure
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('EVENT_RECEIVED');
+
+    // Background tasks complete without throwing
+    await flush();
+
+    // Queue error was logged
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Queue publish failed for webhook payload',
+    );
+
+    // R2 storage still succeeded independently
+    expect(bucket.put).toHaveBeenCalledOnce();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('publishes to queue with correct message structure', async () => {
+    const payload = {
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: '444',
+          changes: [
+            {
+              value: {
+                messages: [{ id: 'wamid.struct', type: 'text', text: { body: 'hello' } }],
+              },
+              field: 'messages',
+            },
+          ],
+        },
+      ],
+    };
+
+    const bucket = mockBucket();
+    const queue = mockQueue();
+    const { ctx, flush } = mockExecutionCtx();
+
+    await app.request(
+      'http://localhost/webhook',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      mockEnv(bucket, queue),
+      ctx,
+    );
+
+    await flush();
+
+    expect(queue.send).toHaveBeenCalledOnce();
+    const sentMessage = (queue.send as ReturnType<typeof vi.fn>).mock.calls[0][0];
+
+    // Verify all required fields in the queue message
+    expect(sentMessage).toEqual(
+      expect.objectContaining({
+        type: 'inbound-message',
+        messageId: 'wamid.struct',
+        rawBody: JSON.stringify(payload),
+      }),
+    );
+    // Timestamp should be a valid ISO 8601 string
+    expect(new Date(sentMessage.timestamp).toISOString()).toBe(sentMessage.timestamp);
+  });
+
+  it('both R2 storage and queue publishing happen in the background', async () => {
+    const payload = {
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: '555',
+          changes: [
+            {
+              value: {
+                messages: [{ id: 'wamid.both', type: 'text', text: { body: 'dual' } }],
+              },
+              field: 'messages',
+            },
+          ],
+        },
+      ],
+    };
+
+    const bucket = mockBucket();
+    const queue = mockQueue();
+    const waitUntilCalls: Promise<unknown>[] = [];
+    const ctx = {
+      waitUntil: (p: Promise<unknown>) => {
+        waitUntilCalls.push(p);
+      },
+      passThroughOnException: () => {},
+    } as ExecutionContext;
+
+    const res = await app.request(
+      'http://localhost/webhook',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      mockEnv(bucket, queue),
+      ctx,
+    );
+
+    // Response returned before background tasks complete
+    expect(res.status).toBe(200);
+
+    // Two waitUntil calls: one for R2, one for Queue
+    expect(waitUntilCalls.length).toBe(2);
+
+    // Neither R2 nor Queue have been called yet (they're in promises)
+    // Wait for them to complete
+    await Promise.all(waitUntilCalls);
+
+    // Now both should have been called
+    expect(bucket.put).toHaveBeenCalledOnce();
+    expect(queue.send).toHaveBeenCalledOnce();
   });
 });

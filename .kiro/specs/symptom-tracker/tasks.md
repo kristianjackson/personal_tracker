@@ -39,7 +39,7 @@
   - Design: DD-002, DD-004
   - Depends on: Task 7, Task 6
 
-- [ ] 9. Publish inbound message events to Cloudflare Queue after quick ack (return 200 before processing)
+- [x] 9. Publish inbound message events to Cloudflare Queue after quick ack (return 200 before processing)
   - Requirements: NFR-OPS-001, NFR-OPS-004
   - Design: DD-002
   - Depends on: Task 7

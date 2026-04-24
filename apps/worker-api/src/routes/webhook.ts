@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../index';
 import { extractMessageId, storeRawEnvelope } from '../services/r2-storage';
+import { publishToQueue } from '../services/queue-publisher';
 
 const webhook = new Hono<{ Bindings: Env }>();
 
@@ -39,14 +40,16 @@ webhook.get('/', (c) => {
  * Accepts the POST body from Meta's webhook and returns 200 immediately
  * to acknowledge receipt (fast-ack pattern, < 200ms).
  *
- * Uses waitUntil() to persist the raw envelope to R2 in the background
- * after the 200 response is sent. This maintains the fast-ack pattern
- * from DD-002 while fulfilling NFR-OPS-005 (30-day raw envelope retention).
+ * Uses waitUntil() to persist the raw envelope to R2 and publish to
+ * Cloudflare Queue in the background after the 200 response is sent.
+ * This maintains the fast-ack pattern from DD-002 while fulfilling
+ * NFR-OPS-005 (30-day raw envelope retention) and NFR-OPS-001 (async
+ * processing via Queue).
  *
- * R2 write failures are logged but do not affect the webhook response.
+ * R2 and Queue failures are logged but do not affect the webhook response.
  * No PHI is logged (NFR-SEC-005) — only message IDs and error codes.
  *
- * Validates: FR-WA-001, NFR-OPS-001, NFR-OPS-002, NFR-OPS-005, DD-002
+ * Validates: FR-WA-001, NFR-OPS-001, NFR-OPS-002, NFR-OPS-004, NFR-OPS-005, DD-002
  */
 webhook.post('/', async (c) => {
   let rawBody: string;
@@ -56,7 +59,16 @@ webhook.post('/', async (c) => {
     return c.text('EVENT_RECEIVED', 200);
   }
 
-  // Schedule R2 storage in the background via waitUntil
+  // Parse payload and extract message_id once for both R2 and Queue
+  let payload: Record<string, unknown>;
+  try {
+    payload = JSON.parse(rawBody) as Record<string, unknown>;
+  } catch {
+    payload = {};
+  }
+  const messageId = extractMessageId(payload);
+
+  // Schedule background tasks via waitUntil (after 200 response)
   let ctx: ExecutionContext | undefined;
   try {
     ctx = c.executionCtx;
@@ -64,23 +76,24 @@ webhook.post('/', async (c) => {
     // executionCtx may not be available in test environments
   }
   if (ctx && typeof ctx.waitUntil === 'function') {
+    // R2 storage — raw envelope archive (NFR-OPS-005)
     ctx.waitUntil(
       (async () => {
         try {
-          let payload: Record<string, unknown>;
-          try {
-            payload = JSON.parse(rawBody) as Record<string, unknown>;
-          } catch {
-            // If body isn't valid JSON, store with a fallback key
-            payload = {};
-          }
-
-          const messageId = extractMessageId(payload);
           await storeRawEnvelope(c.env.BUCKET, messageId, rawBody);
         } catch {
-          // Log error without PHI — only indicate R2 storage failure
-          // In production, this would use structured logging
           console.error('R2 storage failed for webhook payload');
+        }
+      })(),
+    );
+
+    // Queue publish — async processing (NFR-OPS-001, DD-002)
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await publishToQueue(c.env.QUEUE, messageId, rawBody);
+        } catch {
+          console.error('Queue publish failed for webhook payload');
         }
       })(),
     );
