@@ -12,9 +12,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@symptom-tracker/shared": "*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@symptom-tracker/shared": "*"
+    "react-router-dom": "^7.14.2"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

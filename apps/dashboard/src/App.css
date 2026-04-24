@@ -1,0 +1,48 @@
+/* CSS custom properties for consistent theming */
+:root {
+  --color-bg: #f8f9fa;
+  --color-surface: #ffffff;
+  --color-text: #1a1a2e;
+  --color-text-muted: #6b7280;
+  --color-primary: #4f46e5;
+  --color-border: #e5e7eb;
+  --color-hover: #f3f4f6;
+  --color-active: #eef2ff;
+
+  --sidebar-width-full: 14rem;
+  --sidebar-width-compact: 3.5rem;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.page h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.page p {
+  color: var(--color-text-muted);
+  max-width: 40rem;
+  line-height: 1.6;
+}

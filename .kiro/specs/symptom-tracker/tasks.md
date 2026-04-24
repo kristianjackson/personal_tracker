@@ -134,7 +134,7 @@
 
 ## Milestone M3 — Dashboard foundation
 
-- [ ] 27. Create React + TypeScript dashboard shell on Cloudflare Pages: app layout, routing (overview, trends, notes, medications, flags, reports, settings), responsive design (375px/768px/1280px breakpoints)
+- [x] 27. Create React + TypeScript dashboard shell on Cloudflare Pages: app layout, routing (overview, trends, notes, medications, flags, reports, settings), responsive design (375px/768px/1280px breakpoints)
   - Requirements: FR-DB-001, NFR-OPS-003
   - Design: Section 2.1
   - Depends on: Task 1
