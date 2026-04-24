@@ -80,4 +80,8 @@ export const WORKER_API_BINDINGS: EnvValidationRule[] = [
   { name: 'QUEUE', required: true, description: 'Cloudflare Queue' },
   { name: 'BUCKET', required: true, description: 'R2 bucket' },
   { name: 'KV', required: true, description: 'KV namespace' },
+  { name: 'WHATSAPP_API_TOKEN', required: true, description: 'WhatsApp Cloud API access token' },
+  { name: 'WHATSAPP_PHONE_NUMBER_ID', required: true, description: 'WhatsApp sender phone number ID' },
+  { name: 'WHATSAPP_VERIFY_TOKEN', required: true, description: 'Webhook verification token' },
+  { name: 'META_APP_SECRET', required: true, description: 'Meta App Secret for webhook signature verification' },
 ];

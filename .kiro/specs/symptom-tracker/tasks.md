@@ -49,7 +49,7 @@
   - Design: Section 10.2
   - Depends on: Task 9
 
-- [ ] 11. Implement phone-number to user binding model (whatsapp_binding table, lookup by phone number, assign to user)
+- [x] 11. Implement phone-number to user binding model (whatsapp_binding table, lookup by phone number, assign to user)
   - Requirements: FR-WA-002
   - Design: Section 5.2
   - Depends on: Task 6
