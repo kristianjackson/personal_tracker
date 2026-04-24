@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../index';
+import { extractMessageId, storeRawEnvelope } from '../services/r2-storage';
 
 const webhook = new Hono<{ Bindings: Env }>();
 
@@ -38,12 +39,53 @@ webhook.get('/', (c) => {
  * Accepts the POST body from Meta's webhook and returns 200 immediately
  * to acknowledge receipt (fast-ack pattern, < 200ms).
  *
- * Actual message processing (R2 storage, queue publishing) is handled
- * in subsequent tasks (Tasks 8 and 9).
+ * Uses waitUntil() to persist the raw envelope to R2 in the background
+ * after the 200 response is sent. This maintains the fast-ack pattern
+ * from DD-002 while fulfilling NFR-OPS-005 (30-day raw envelope retention).
  *
- * Validates: FR-WA-001, NFR-OPS-001, DD-002
+ * R2 write failures are logged but do not affect the webhook response.
+ * No PHI is logged (NFR-SEC-005) — only message IDs and error codes.
+ *
+ * Validates: FR-WA-001, NFR-OPS-001, NFR-OPS-002, NFR-OPS-005, DD-002
  */
-webhook.post('/', (c) => {
+webhook.post('/', async (c) => {
+  let rawBody: string;
+  try {
+    rawBody = await c.req.text();
+  } catch {
+    return c.text('EVENT_RECEIVED', 200);
+  }
+
+  // Schedule R2 storage in the background via waitUntil
+  let ctx: ExecutionContext | undefined;
+  try {
+    ctx = c.executionCtx;
+  } catch {
+    // executionCtx may not be available in test environments
+  }
+  if (ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(
+      (async () => {
+        try {
+          let payload: Record<string, unknown>;
+          try {
+            payload = JSON.parse(rawBody) as Record<string, unknown>;
+          } catch {
+            // If body isn't valid JSON, store with a fallback key
+            payload = {};
+          }
+
+          const messageId = extractMessageId(payload);
+          await storeRawEnvelope(c.env.BUCKET, messageId, rawBody);
+        } catch {
+          // Log error without PHI — only indicate R2 storage failure
+          // In production, this would use structured logging
+          console.error('R2 storage failed for webhook payload');
+        }
+      })(),
+    );
+  }
+
   return c.text('EVENT_RECEIVED', 200);
 });
 

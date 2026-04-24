@@ -34,7 +34,7 @@
   - Design: DD-002
   - Depends on: Task 3
 
-- [ ] 8. Persist raw inbound message envelope to R2 (30-day TTL) with message_id as idempotency/dedup key
+- [x] 8. Persist raw inbound message envelope to R2 (30-day TTL) with message_id as idempotency/dedup key
   - Requirements: NFR-OPS-002, NFR-OPS-005
   - Design: DD-002, DD-004
   - Depends on: Task 7, Task 6
