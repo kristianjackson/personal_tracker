@@ -10,7 +10,7 @@
   - Requirements: NFR-MNT-003, NFR-MNT-005
   - Depends on: Task 1
 
-- [ ] 3. Configure Cloudflare environments (dev/prod) with D1, KV, R2, Queue bindings in wrangler.toml
+- [x] 3. Configure Cloudflare environments (dev/prod) with D1, KV, R2, Queue bindings in wrangler.toml
   - Requirements: NFR-MNT-002, NFR-OPS-006
   - Depends on: Task 1
 

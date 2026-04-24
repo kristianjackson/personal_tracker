@@ -2,13 +2,17 @@ import { Hono } from 'hono';
 
 /**
  * Cloudflare Worker bindings.
- * Populated by wrangler.toml — actual binding configuration happens in Task 3.
+ * Populated by wrangler.toml per-environment (dev / production).
  */
 export interface Env {
+  // ── Service bindings ──
   DB: D1Database;
   QUEUE: Queue;
   BUCKET: R2Bucket;
   KV: KVNamespace;
+
+  // ── Environment variables (wrangler.toml [vars]) ──
+  ENVIRONMENT: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();

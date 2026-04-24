@@ -1,5 +1,130 @@
+# ──────────────────────────────────────────────────────────────────────
+# Symptom Tracker API — Cloudflare Worker configuration
+# ──────────────────────────────────────────────────────────────────────
+# After creating Cloudflare resources (D1, KV, R2, Queue), replace every
+# placeholder ID (e.g. "<DEV_D1_DATABASE_ID>") with the real value from
+# the Cloudflare dashboard or `wrangler` CLI output.
+# ──────────────────────────────────────────────────────────────────────
+
 name = "symptom-tracker-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
-# Bindings will be configured in Task 3 (D1, KV, R2, Queue per environment)
+# Enable Node.js compat for libraries that need it
+compatibility_flags = ["nodejs_compat"]
+
+# ── D1 Database ──────────────────────────────────────────────────────
+# Primary relational store for all structured data (users, check-ins,
+# observations, medications, flags, reports, audit events).
+# Supports NFR-MNT-002: migration-driven schema via numbered SQL files.
+[[d1_databases]]
+binding = "DB"
+database_name = "symptom-tracker-db"
+database_id = "<D1_DATABASE_ID>"          # wrangler d1 create symptom-tracker-db
+migrations_dir = "./migrations"
+
+# ── Workers KV ───────────────────────────────────────────────────────
+# Ephemeral session state (check-in sessions with 4h TTL) and cached
+# config (baselines, feature flags).
+[[kv_namespaces]]
+binding = "KV"
+id = "<KV_NAMESPACE_ID>"                  # wrangler kv namespace create SYMPTOM_TRACKER_KV
+
+# ── R2 Object Storage ───────────────────────────────────────────────
+# PDFs, CSVs, and raw webhook payload archive (30-day retention).
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "symptom-tracker-bucket"
+
+# ── Queue Producer ───────────────────────────────────────────────────
+# Publishes inbound-message, scheduled-prompt, report-generate, and
+# analytics-refresh events for async processing.
+[[queues.producers]]
+binding = "QUEUE"
+queue = "symptom-tracker-queue"
+
+# ── Queue Consumer ───────────────────────────────────────────────────
+# This worker consumes messages from the queue for async processing
+# (webhook payloads, report generation, analytics refresh).
+[[queues.consumers]]
+queue = "symptom-tracker-queue"
+max_batch_size = 10
+max_batch_timeout = 30                    # seconds
+max_retries = 3
+dead_letter_queue = "symptom-tracker-dlq"
+
+# ── Cron Triggers ────────────────────────────────────────────────────
+# - Every 15 minutes: check which users need a daily prompt based on
+#   their configured IANA timezone.
+# - Every Monday at 09:00 UTC: trigger weekly summary generation.
+[triggers]
+crons = [
+  "*/15 * * * *",   # Check for due daily prompts (timezone-aware)
+  "0 9 * * 1",      # Weekly summary trigger (Mondays 09:00 UTC)
+]
+
+# ══════════════════════════════════════════════════════════════════════
+#  DEV environment
+# ══════════════════════════════════════════════════════════════════════
+[env.dev]
+
+[env.dev.vars]
+ENVIRONMENT = "dev"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "symptom-tracker-dev-db"
+database_id = "<DEV_D1_DATABASE_ID>"      # wrangler d1 create symptom-tracker-dev-db
+migrations_dir = "./migrations"
+
+[[env.dev.kv_namespaces]]
+binding = "KV"
+id = "<DEV_KV_NAMESPACE_ID>"             # wrangler kv namespace create SYMPTOM_TRACKER_DEV_KV
+
+[[env.dev.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "symptom-tracker-dev-bucket"
+
+[[env.dev.queues.producers]]
+binding = "QUEUE"
+queue = "symptom-tracker-dev-queue"
+
+[[env.dev.queues.consumers]]
+queue = "symptom-tracker-dev-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "symptom-tracker-dev-dlq"
+
+# ══════════════════════════════════════════════════════════════════════
+#  PRODUCTION environment
+# ══════════════════════════════════════════════════════════════════════
+[env.production]
+
+[env.production.vars]
+ENVIRONMENT = "production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "symptom-tracker-db"
+database_id = "<PROD_D1_DATABASE_ID>"     # wrangler d1 create symptom-tracker-db
+migrations_dir = "./migrations"
+
+[[env.production.kv_namespaces]]
+binding = "KV"
+id = "<PROD_KV_NAMESPACE_ID>"            # wrangler kv namespace create SYMPTOM_TRACKER_KV
+
+[[env.production.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "symptom-tracker-bucket"
+
+[[env.production.queues.producers]]
+binding = "QUEUE"
+queue = "symptom-tracker-queue"
+
+[[env.production.queues.consumers]]
+queue = "symptom-tracker-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "symptom-tracker-dlq"
