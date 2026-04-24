@@ -106,7 +106,7 @@
   - Depends on: Task 15
   - Note: Deferrable to post-MVP
 
-- [~] 22. Implement outbound prompt scheduler: cron trigger sends daily check-in prompt and weekly summary prompt at user's configured local time (convert IANA timezone to UTC for cron scheduling)
+- [x] 22. Implement outbound prompt scheduler: cron trigger sends daily check-in prompt and weekly summary prompt at user's configured local time (convert IANA timezone to UTC for cron scheduling)
   - Requirements: FR-WA-007, FR-ADM-001
   - Design: DD-010, Section 10.1
   - Depends on: Task 3

@@ -52,6 +52,7 @@ import {
   getInstrumentSession,
 } from './instrument-flow';
 import type { InstrumentFlowEnv } from './instrument-flow';
+import { processScheduledPrompt } from './prompt-scheduler';
 import { localDateToday, parseCheckinDate, isCheckinDateError, isFeatureEnabled } from '@symptom-tracker/shared';
 
 /** Result of processing a single queue message. */
@@ -443,15 +444,17 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
   );
 }
 
-async function handleScheduledPrompt(body: InboundQueueMessage, _env: Env): Promise<void> {
+async function handleScheduledPrompt(body: InboundQueueMessage, env: Env): Promise<void> {
   console.log(
     JSON.stringify({
       level: 'info',
       handler: 'scheduled-prompt',
       messageId: body.messageId,
-      msg: 'Processing scheduled prompt (stub)',
+      msg: 'Processing scheduled prompt',
     }),
   );
+
+  await processScheduledPrompt(body.rawBody, env);
 }
 
 async function handleReportGenerate(body: InboundQueueMessage, _env: Env): Promise<void> {

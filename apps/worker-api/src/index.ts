@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { webhook } from './routes/webhook';
 import { handleQueueBatch } from './services/queue-consumer';
+import { handleScheduledEvent } from './services/prompt-scheduler';
 
 /**
  * Cloudflare Worker bindings.
@@ -35,4 +36,11 @@ app.route('/webhook', webhook);
 export default {
   fetch: app.fetch,
   queue: handleQueueBatch,
+  async scheduled(
+    _event: ScheduledEvent,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    ctx.waitUntil(handleScheduledEvent(env));
+  },
 };

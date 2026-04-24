@@ -40,15 +40,32 @@ function makeBody(
   type: string,
   messageId = 'wamid.test123',
 ): InboundQueueMessage {
+  // For scheduled-prompt messages, provide a valid ScheduledPromptBody
+  const rawBody =
+    type === 'scheduled-prompt'
+      ? JSON.stringify({
+          scheduleId: 'daily-checkin',
+          scheduleName: 'Daily Check-in Prompt',
+          scheduleType: 'daily',
+          userId: 'user-1',
+          phoneNumber: '+1234567890',
+          localTime: '09:00',
+          timezone: 'UTC',
+        })
+      : '{}';
+
   return {
     type: type as QueueMessageType,
     messageId,
-    rawBody: '{}',
+    rawBody,
     timestamp: '2025-06-10T14:30:00.000Z',
   };
 }
 
-const mockEnv = {} as Env;
+const mockEnv = {
+  WHATSAPP_API_TOKEN: 'test-token',
+  WHATSAPP_PHONE_NUMBER_ID: '123456',
+} as unknown as Env;
 const mockCtx = {
   waitUntil: vi.fn(),
   passThroughOnException: vi.fn(),
@@ -58,9 +75,13 @@ const mockCtx = {
 
 describe('handleQueueBatch', () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ messages: [{ id: 'wamid.ok' }] }), { status: 200 }),
+    );
   });
 
   afterEach(() => {
