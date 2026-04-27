@@ -159,7 +159,7 @@
   - Design: Section 7.2
   - Depends on: Task 29
 
-- [ ] 32. Build note viewer: paginated note list with full-text search, tag filter chips, date range filter, expandable note cards showing full body and tags
+- [x] 32. Build note viewer: paginated note list with full-text search, tag filter chips, date range filter, expandable note cards showing full body and tags
   - Requirements: FR-DB-004
   - Depends on: Task 29
 
