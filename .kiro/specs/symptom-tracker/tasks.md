@@ -149,7 +149,7 @@
   - Design: Section 10.1
   - Depends on: Task 6
 
-- [ ] 30. Build overview page: completion rate chart, check-in streak, note count, active flag count, missing-data-by-variable heatmap, last check-in timestamp
+- [x] 30. Build overview page: completion rate chart, check-in streak, note count, active flag count, missing-data-by-variable heatmap, last check-in timestamp
   - Requirements: FR-DB-008
   - Design: Section 7.2
   - Depends on: Task 27, Task 29
