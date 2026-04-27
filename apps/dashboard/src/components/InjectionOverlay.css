@@ -1,0 +1,102 @@
+/* InjectionOverlay styles */
+
+.injection-overlay-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+}
+
+.injection-overlay-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.injection-overlay-subtitle {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.injection-overlay-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* ── Injection markers ───────────────────────────────────── */
+
+.injection-markers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.injection-marker-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  color: #4338ca;
+}
+
+.injection-marker-icon {
+  font-size: 0.875rem;
+}
+
+.injection-marker-label {
+  font-weight: 500;
+}
+
+/* ── Chart container ─────────────────────────────────────── */
+
+.injection-overlay-chart-container {
+  width: 100%;
+  min-height: 280px;
+}
+
+/* ── Tooltip ─────────────────────────────────────────────── */
+
+.injection-overlay-tooltip {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-size: 0.8125rem;
+}
+
+.injection-overlay-tooltip-title {
+  margin: 0 0 0.375rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.injection-overlay-tooltip-value {
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  .injection-overlay-card {
+    padding: 0.75rem;
+  }
+
+  .injection-overlay-chart-container {
+    min-height: 220px;
+  }
+
+  .injection-markers {
+    flex-direction: column;
+  }
+}

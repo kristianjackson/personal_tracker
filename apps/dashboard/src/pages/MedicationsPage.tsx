@@ -32,6 +32,9 @@ import {
   formatShortDate,
   EVENT_TYPE_CONFIG,
 } from './medications-helpers.js';
+import type { SideEffectObservation } from './injection-overlay-helpers.js';
+import { buildInjectionOverlayData } from './injection-overlay-helpers.js';
+import InjectionOverlay from '../components/InjectionOverlay.js';
 import './MedicationsPage.css';
 
 /* ── Adherence rate color helper ─────────────────────────── */
@@ -91,6 +94,7 @@ export default function MedicationsPage() {
   const [customEnd, setCustomEnd] = useState(todayUTC());
   const [events, setEvents] = useState<MedicationEvent[]>([]);
   const [adherence, setAdherence] = useState<AdherenceSummary[]>([]);
+  const [sideEffects, setSideEffects] = useState<SideEffectObservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,6 +113,7 @@ export default function MedicationsPage() {
       const json = (await res.json()) as MedicationsApiResponse;
       setEvents(json.data.events);
       setAdherence(json.data.adherence);
+      setSideEffects(json.data.sideEffects as SideEffectObservation[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -133,6 +138,7 @@ export default function MedicationsPage() {
   const timelines = buildMedicationTimelines(events);
   const weeklyAdherence = buildWeeklyAdherence(events);
   const missedDoses = getMissedDoses(events);
+  const injectionOverlay = buildInjectionOverlayData(events, sideEffects);
 
   return (
     <div className="page medications">
@@ -210,6 +216,9 @@ export default function MedicationsPage() {
               </div>
             ))}
           </div>
+
+          {/* ── Injection side-effect overlay ───────────────── */}
+          <InjectionOverlay data={injectionOverlay} />
 
           {/* ── Per-medication timeline ──────────────────────── */}
           <div className="med-section" aria-label="Medication event timeline">

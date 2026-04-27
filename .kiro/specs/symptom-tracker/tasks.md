@@ -167,7 +167,7 @@
   - Requirements: FR-DB-005
   - Depends on: Task 29
 
-- [ ] 34. Build injection overlay view: injection event markers on timeline with appetite suppression, weight, and GI symptom (nausea/diarrhea/vomiting/constipation/abdominal pain) severity curves overlaid. Show day-offset from injection (day 0, +1, +2, +3).
+- [x] 34. Build injection overlay view: injection event markers on timeline with appetite suppression, weight, and GI symptom (nausea/diarrhea/vomiting/constipation/abdominal pain) severity curves overlaid. Show day-offset from injection (day 0, +1, +2, +3).
   - Requirements: FR-DB-003
   - Design: Section 7.2
   - Depends on: Task 29
