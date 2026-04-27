@@ -163,7 +163,7 @@
   - Requirements: FR-DB-004
   - Depends on: Task 29
 
-- [ ] 33. Build medication adherence view: per-medication taken/missed/injected timeline, weekly adherence percentage bar chart, missed-dose highlights
+- [x] 33. Build medication adherence view: per-medication taken/missed/injected timeline, weekly adherence percentage bar chart, missed-dose highlights
   - Requirements: FR-DB-005
   - Depends on: Task 29
 
