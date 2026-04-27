@@ -135,3 +135,71 @@
     width: var(--sidebar-width-full);
   }
 }
+
+/* ── Sidebar footer / clinician toggle ─────────────────── */
+
+.sidebar-footer {
+  padding: 0.5rem;
+  border-top: 1px solid var(--color-border);
+  margin-top: auto;
+}
+
+.clinician-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.clinician-toggle:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.clinician-toggle--active {
+  background: #eef2ff;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.clinician-toggle-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  width: 1.5rem;
+  text-align: center;
+}
+
+.clinician-toggle-label {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Tablet: hide label in toggle */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .clinician-toggle-label {
+    display: none;
+  }
+
+  .clinician-toggle {
+    justify-content: center;
+    padding: 0.625rem;
+  }
+}
+
+/* ── Print: hide sidebar entirely ──────────────────────── */
+
+@media print {
+  .sidebar,
+  .sidebar-overlay {
+    display: none !important;
+  }
+}

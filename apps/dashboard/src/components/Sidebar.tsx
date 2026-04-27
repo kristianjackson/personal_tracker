@@ -1,15 +1,7 @@
 import { NavLink } from 'react-router-dom';
+import { useClinicianMode } from './ClinicianModeContext.js';
+import { NAV_ITEMS, filterNavItems } from './clinician-mode-helpers.js';
 import './Sidebar.css';
-
-const NAV_ITEMS = [
-  { to: '/', label: 'Overview', icon: '📊' },
-  { to: '/trends', label: 'Trends', icon: '📈' },
-  { to: '/notes', label: 'Notes', icon: '📝' },
-  { to: '/medications', label: 'Medications', icon: '💊' },
-  { to: '/flags', label: 'Flags', icon: '🚩' },
-  { to: '/reports', label: 'Reports', icon: '📄' },
-  { to: '/settings', label: 'Settings', icon: '⚙️' },
-];
 
 interface SidebarProps {
   open: boolean;
@@ -17,6 +9,10 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
+  const { enabled: clinicianMode, toggle: toggleClinicianMode } = useClinicianMode();
+
+  const visibleItems = filterNavItems(NAV_ITEMS, clinicianMode);
+
   return (
     <>
       <div
@@ -24,7 +20,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         onClick={onClose}
         aria-hidden="true"
       />
-      <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Main navigation">
+      <aside
+        className={`sidebar${open ? ' open' : ''}${clinicianMode ? ' clinician-mode' : ''}`}
+        aria-label="Main navigation"
+      >
         <div className="sidebar-header">
           <span className="sidebar-logo" aria-hidden="true">
             🩺
@@ -33,7 +32,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         </div>
         <nav className="sidebar-nav">
           <ul>
-            {NAV_ITEMS.map((item) => (
+            {visibleItems.map((item) => (
               <li key={item.to}>
                 <NavLink
                   to={item.to}
@@ -52,6 +51,21 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             ))}
           </ul>
         </nav>
+        <div className="sidebar-footer">
+          <button
+            className={`clinician-toggle${clinicianMode ? ' clinician-toggle--active' : ''}`}
+            onClick={toggleClinicianMode}
+            aria-pressed={clinicianMode}
+            title={clinicianMode ? 'Exit clinician summary mode' : 'Enter clinician summary mode'}
+          >
+            <span className="clinician-toggle-icon" aria-hidden="true">
+              🩻
+            </span>
+            <span className="clinician-toggle-label">
+              {clinicianMode ? 'Exit Summary' : 'Clinician View'}
+            </span>
+          </button>
+        </div>
       </aside>
     </>
   );

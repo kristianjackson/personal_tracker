@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar.js';
+import { useClinicianMode } from './ClinicianModeContext.js';
 import './Layout.css';
 
 const DISCLAIMER =
@@ -8,9 +9,10 @@ const DISCLAIMER =
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { enabled: clinicianMode } = useClinicianMode();
 
   return (
-    <div className="layout">
+    <div className={`layout${clinicianMode ? ' clinician-mode' : ''}`}>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <header className="layout-header">
@@ -22,6 +24,11 @@ export default function Layout() {
           ☰
         </button>
         <h1>Symptom Tracker</h1>
+        {clinicianMode && (
+          <span className="clinician-badge" aria-label="Clinician summary mode active">
+            Clinician Summary
+          </span>
+        )}
       </header>
 
       <div className="layout-body">

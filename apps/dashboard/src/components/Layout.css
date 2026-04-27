@@ -100,3 +100,83 @@
     margin-left: var(--sidebar-width-full);
   }
 }
+
+/* ── Clinician summary mode badge ──────────────────────── */
+
+.clinician-badge {
+  display: inline-block;
+  margin-left: auto;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: #eef2ff;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* ── Print-friendly styles ─────────────────────────────── */
+
+@media print {
+  /* Reset layout offsets */
+  .layout-header,
+  .layout-body {
+    margin-left: 0 !important;
+  }
+
+  /* Hide non-essential chrome */
+  .layout-header .menu-button {
+    display: none !important;
+  }
+
+  /* Clean header for print */
+  .layout-header {
+    position: static;
+    border-bottom: 2px solid #000;
+    background: #fff;
+    padding: 0.5rem 0;
+  }
+
+  .layout-header h1 {
+    font-size: 1.25rem;
+    color: #000;
+  }
+
+  .clinician-badge {
+    border-color: #000;
+    color: #000;
+    background: #f0f0f0;
+  }
+
+  /* Main content: remove padding constraints */
+  .layout-main {
+    padding: 0.5rem 0;
+    max-width: 100%;
+  }
+
+  /* Footer: simple line */
+  .layout-footer {
+    border-top: 1px solid #ccc;
+    background: #fff;
+    padding: 0.5rem 0;
+  }
+
+  .disclaimer {
+    color: #666;
+    font-size: 0.625rem;
+  }
+
+  /* General print resets */
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Avoid page breaks inside cards/charts */
+  .stat-card,
+  .overview-section,
+  .page {
+    break-inside: avoid;
+  }
+}

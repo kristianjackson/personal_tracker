@@ -172,7 +172,7 @@
   - Design: Section 7.2
   - Depends on: Task 29
 
-- [ ] 35. Add clinician-summary dashboard mode: toggle that hides settings/admin/config UI and shows only clinical data views (trends, meds, flags, notes) with print-friendly styling
+- [x] 35. Add clinician-summary dashboard mode: toggle that hides settings/admin/config UI and shows only clinical data views (trends, meds, flags, notes) with print-friendly styling
   - Requirements: FR-DB-007
   - Design: DD-007
   - Depends on: Task 30
