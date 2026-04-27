@@ -154,7 +154,7 @@
   - Design: Section 7.2
   - Depends on: Task 27, Task 29
 
-- [ ] 31. Build time-series trend charts: line charts for sleep (hours), mood, energy, focus, impulsivity, irritability (0–5 y-axis) with daily/weekly/monthly/custom date range selector. Show 7-day rolling average overlay.
+- [x] 31. Build time-series trend charts: line charts for sleep (hours), mood, energy, focus, impulsivity, irritability (0–5 y-axis) with daily/weekly/monthly/custom date range selector. Show 7-day rolling average overlay.
   - Requirements: FR-DB-002, FR-DB-006
   - Design: Section 7.2
   - Depends on: Task 29

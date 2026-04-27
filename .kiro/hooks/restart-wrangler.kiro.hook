@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Restart Wrangler",
+  "description": "Stops any running wrangler processes, then restarts the dev server and triggers a deploy from apps/worker-api.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Stop any running wrangler dev or wrangler deploy processes, then restart them both in apps/worker-api. Run `npx wrangler dev` as a background process using controlPwshProcess with cwd \"apps/worker-api\", and run `npx wrangler deploy` as a foreground command in apps/worker-api. Report back the status of both."
+  }
+}
