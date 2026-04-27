@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { webhook } from './routes/webhook';
+import { apiRoutes } from './routes/api';
 import { accessAuth } from './middleware/access-auth';
 import { handleQueueBatch } from './services/queue-consumer';
 import { handleScheduledEvent } from './services/prompt-scheduler';
@@ -45,7 +46,8 @@ app.route('/webhook', webhook);
 const api = new Hono<{ Bindings: Env; Variables: { userEmail: string } }>();
 api.use('*', accessAuth);
 
-// Task 29 will add API endpoints here (GET /api/checkins, /api/notes, etc.)
+// Mount dashboard API endpoints (Task 29)
+api.route('/', apiRoutes);
 
 app.route('/api', api);
 

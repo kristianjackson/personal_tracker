@@ -129,8 +129,8 @@ describe('Seed config: questions', () => {
 describe('Seed config: medications', () => {
   const meds = getMedications();
 
-  it('contains at least 4 medications', () => {
-    expect(meds.length).toBeGreaterThanOrEqual(4);
+  it('contains at least 5 medications', () => {
+    expect(meds.length).toBeGreaterThanOrEqual(5);
   });
 
   it('has unique codes', () => {
@@ -146,8 +146,8 @@ describe('Seed config: medications', () => {
     expect(mounjaro!.default_dose_unit).toBe('mg');
   });
 
-  it('includes oral medications (seroquel, lithium, lamotrigine)', () => {
-    for (const code of ['seroquel', 'lithium', 'lamotrigine']) {
+  it('includes oral medications (glipizide, metformin, abilify, trileptal)', () => {
+    for (const code of ['glipizide', 'metformin', 'abilify', 'trileptal']) {
       const med = getMedicationByCode(code);
       expect(med).toBeDefined();
       expect(med!.route).toBe('oral');

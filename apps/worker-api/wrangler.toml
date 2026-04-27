@@ -70,8 +70,8 @@ crons = [
 
 [env.dev.vars]
 ENVIRONMENT = "dev"
-CF_ACCESS_TEAM_DOMAIN = "<YOUR_TEAM_DOMAIN>"
-CF_ACCESS_AUD = "<YOUR_ACCESS_AUD_TAG>"
+CF_ACCESS_TEAM_DOMAIN = "kpj.cloudflareaccess.com"
+CF_ACCESS_AUD = "6fa74cf041d6edacf5a101ee2f8d3ba2c32987dfdb5d90c1593ab9a48887c8ad"
 
 [[env.dev.d1_databases]]
 binding = "DB"
@@ -105,8 +105,8 @@ dead_letter_queue = "symptom-tracker-dev-dlq"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-CF_ACCESS_TEAM_DOMAIN = "<YOUR_TEAM_DOMAIN>"
-CF_ACCESS_AUD = "<YOUR_ACCESS_AUD_TAG>"
+CF_ACCESS_TEAM_DOMAIN = "kpj.cloudflareaccess.com"
+CF_ACCESS_AUD = "6fa74cf041d6edacf5a101ee2f8d3ba2c32987dfdb5d90c1593ab9a48887c8ad"
 
 [[env.production.d1_databases]]
 binding = "DB"

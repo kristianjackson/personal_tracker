@@ -161,10 +161,10 @@ export function parseNaturalNumber(
  *
  * Matches against the active medication list from seed config.
  * Handles patterns like:
- * - "missed seroquel"
- * - "forgot my lithium"
- * - "didn't take lamotrigine"
- * - "skipped seroquel today"
+ * - "missed abilify"
+ * - "forgot my metformin"
+ * - "didn't take trileptal"
+ * - "skipped glipizide today"
  */
 export function parseMedicationMention(
   text: string,
@@ -176,7 +176,7 @@ export function parseMedicationMention(
   const meds = medications ?? getActiveMedications();
 
   for (const med of meds) {
-    // Match against the medication code (e.g. "seroquel")
+    // Match against the medication code (e.g. "abilify")
     if (lower.includes(med.code.toLowerCase())) {
       return {
         kind: 'medication',
@@ -186,7 +186,7 @@ export function parseMedicationMention(
       };
     }
 
-    // Match against the display name (e.g. "Seroquel (quetiapine)")
+    // Match against the display name (e.g. "Abilify (aripiprazole)")
     // Extract the generic name from parentheses if present
     const genericMatch = med.display_name.match(/\(([^)]+)\)/);
     if (genericMatch) {

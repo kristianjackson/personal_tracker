@@ -58,7 +58,7 @@ const PENDING_NOTE_TTL_SECONDS = 15 * 60;
  * Keywords are checked case-insensitively against the note text.
  */
 const TAG_KEYWORDS: Record<string, string[]> = {
-  meds: ['med', 'meds', 'medication', 'medications', 'pill', 'pills', 'dose', 'dosage', 'prescription', 'rx', 'seroquel', 'lithium', 'lamictal', 'mounjaro'],
+  meds: ['med', 'meds', 'medication', 'medications', 'pill', 'pills', 'dose', 'dosage', 'prescription', 'rx', 'mounjaro', 'glipizide', 'metformin', 'abilify', 'trileptal'],
   work: ['work', 'job', 'office', 'meeting', 'boss', 'coworker', 'deadline', 'project', 'shift'],
   conflict: ['conflict', 'fight', 'argument', 'argue', 'argued', 'confrontation', 'tension', 'disagreement', 'yelling', 'yelled'],
   sleep: ['sleep', 'slept', 'insomnia', 'nap', 'tired', 'exhausted', 'restless', 'awake', 'woke'],

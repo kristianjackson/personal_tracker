@@ -144,7 +144,7 @@
   - Design: DD-005, Section 9.2
   - Depends on: Task 27
 
-- [ ] 29. Implement dashboard API endpoints (Hono on Workers): GET /api/checkins (with date range), GET /api/notes (with tag/date filters, text search), GET /api/medications (events + adherence), GET /api/flags (active/dismissed), GET /api/reports (list + download), GET /api/overview (completion stats)
+- [x] 29. Implement dashboard API endpoints (Hono on Workers): GET /api/checkins (with date range), GET /api/notes (with tag/date filters, text search), GET /api/medications (events + adherence), GET /api/flags (active/dismissed), GET /api/reports (list + download), GET /api/overview (completion stats)
   - Requirements: FR-DB-001, FR-DB-004, FR-DB-005, FR-DB-006
   - Design: Section 10.1
   - Depends on: Task 6

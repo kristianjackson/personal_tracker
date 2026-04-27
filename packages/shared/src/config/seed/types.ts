@@ -38,7 +38,7 @@ export type MedicationRouteSeed = 'oral' | 'injection';
 
 /** A medication definition in the seed config. */
 export interface MedicationDefinitionSeed {
-  /** Short code, e.g. "mounjaro", "seroquel". */
+  /** Short code, e.g. "mounjaro", "abilify". */
   code: string;
   /** Human-readable name. */
   display_name: string;

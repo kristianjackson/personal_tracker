@@ -25,29 +25,38 @@ import type { MedicationDefinitionSeed } from '@symptom-tracker/shared';
 
 const testMedications: MedicationDefinitionSeed[] = [
   {
-    code: 'seroquel',
-    display_name: 'Seroquel (quetiapine)',
+    code: 'glipizide',
+    display_name: 'Glipizide',
     route: 'oral',
     dose_options: null,
-    default_dose_value: null,
+    default_dose_value: 10,
     default_dose_unit: 'mg',
     active: true,
   },
   {
-    code: 'lithium',
-    display_name: 'Lithium',
+    code: 'metformin',
+    display_name: 'Metformin',
     route: 'oral',
     dose_options: null,
-    default_dose_value: null,
+    default_dose_value: 1000,
     default_dose_unit: 'mg',
     active: true,
   },
   {
-    code: 'lamotrigine',
-    display_name: 'Lamotrigine (Lamictal)',
+    code: 'abilify',
+    display_name: 'Abilify (aripiprazole)',
     route: 'oral',
     dose_options: null,
-    default_dose_value: null,
+    default_dose_value: 5,
+    default_dose_unit: 'mg',
+    active: true,
+  },
+  {
+    code: 'trileptal',
+    display_name: 'Trileptal (oxcarbazepine)',
+    route: 'oral',
+    dose_options: null,
+    default_dose_value: 600,
     default_dose_unit: 'mg',
     active: true,
   },
@@ -255,31 +264,31 @@ describe('parseNaturalNumber', () => {
 // ── parseMedicationMention ──────────────────────────────────────────
 
 describe('parseMedicationMention', () => {
-  it('detects medication code in "missed seroquel"', () => {
-    const result = parseMedicationMention('missed seroquel', testMedications);
+  it('detects medication code in "missed abilify"', () => {
+    const result = parseMedicationMention('missed abilify', testMedications);
     expect(result).not.toBeNull();
-    expect(result!.medicationCode).toBe('seroquel');
+    expect(result!.medicationCode).toBe('abilify');
     expect(result!.confidence).toBe('high');
   });
 
-  it('detects medication code in "forgot my lithium"', () => {
-    const result = parseMedicationMention('forgot my lithium', testMedications);
+  it('detects medication code in "forgot my metformin"', () => {
+    const result = parseMedicationMention('forgot my metformin', testMedications);
     expect(result).not.toBeNull();
-    expect(result!.medicationCode).toBe('lithium');
+    expect(result!.medicationCode).toBe('metformin');
     expect(result!.confidence).toBe('high');
   });
 
-  it("detects medication code in \"didn't take lamotrigine\"", () => {
-    const result = parseMedicationMention("didn't take lamotrigine", testMedications);
+  it("detects medication code in \"didn't take trileptal\"", () => {
+    const result = parseMedicationMention("didn't take trileptal", testMedications);
     expect(result).not.toBeNull();
-    expect(result!.medicationCode).toBe('lamotrigine');
+    expect(result!.medicationCode).toBe('trileptal');
     expect(result!.confidence).toBe('high');
   });
 
-  it('detects generic name "quetiapine" for seroquel', () => {
-    const result = parseMedicationMention('missed quetiapine', testMedications);
+  it('detects generic name "aripiprazole" for abilify', () => {
+    const result = parseMedicationMention('missed aripiprazole', testMedications);
     expect(result).not.toBeNull();
-    expect(result!.medicationCode).toBe('seroquel');
+    expect(result!.medicationCode).toBe('abilify');
     expect(result!.confidence).toBe('high');
   });
 
@@ -290,17 +299,17 @@ describe('parseMedicationMention', () => {
     expect(result!.confidence).toBe('high');
   });
 
-  it('detects brand name "Lamictal" for lamotrigine', () => {
-    const result = parseMedicationMention('skipped Lamictal today', testMedications);
+  it('detects brand name "oxcarbazepine" for trileptal', () => {
+    const result = parseMedicationMention('skipped oxcarbazepine today', testMedications);
     expect(result).not.toBeNull();
-    expect(result!.medicationCode).toBe('lamotrigine');
+    expect(result!.medicationCode).toBe('trileptal');
     expect(result!.confidence).toBe('high');
   });
 
   it('is case-insensitive', () => {
-    const result = parseMedicationMention('MISSED SEROQUEL', testMedications);
+    const result = parseMedicationMention('MISSED ABILIFY', testMedications);
     expect(result).not.toBeNull();
-    expect(result!.medicationCode).toBe('seroquel');
+    expect(result!.medicationCode).toBe('abilify');
   });
 
   it('returns null for text without medication names', () => {
@@ -314,9 +323,9 @@ describe('parseMedicationMention', () => {
 
   it('returns the first matching medication', () => {
     // If text mentions multiple meds, returns the first match
-    const result = parseMedicationMention('missed seroquel and lithium', testMedications);
+    const result = parseMedicationMention('missed glipizide and metformin', testMedications);
     expect(result).not.toBeNull();
-    expect(result!.medicationCode).toBe('seroquel');
+    expect(result!.medicationCode).toBe('glipizide');
   });
 });
 
@@ -378,10 +387,10 @@ describe('parseNaturalLanguage', () => {
   });
 
   it('detects medication mentions', () => {
-    const result = parseNaturalLanguage('missed seroquel');
+    const result = parseNaturalLanguage('missed abilify');
     expect(result.kind).toBe('medication');
     if (result.kind === 'medication') {
-      expect(result.medicationCode).toBe('seroquel');
+      expect(result.medicationCode).toBe('abilify');
     }
   });
 
@@ -410,8 +419,8 @@ describe('parseNaturalLanguage', () => {
   });
 
   it('prioritizes medication over number extraction', () => {
-    // "missed seroquel" should detect medication, not extract a number
-    const result = parseNaturalLanguage('missed seroquel');
+    // "missed abilify" should detect medication, not extract a number
+    const result = parseNaturalLanguage('missed abilify');
     expect(result.kind).toBe('medication');
   });
 });

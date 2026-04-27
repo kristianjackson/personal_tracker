@@ -699,16 +699,79 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
     return;
   }
 
-  // Other commands (help, status, etc.) — stubs for future tasks
-  // If a session is active, these commands don't lose the session
+  if (command.type === 'help') {
+    const helpText = [
+      '📋 *Available commands:*',
+      '',
+      '*checkin* — Start or resume today\'s check-in',
+      '*checkin yesterday* — Log a missed day (up to 7 days back)',
+      '*note: <text>* — Save a freeform note',
+      '*inject* — Log a Mounjaro injection',
+      '*missed med* — Log a missed medication dose',
+      '*missed <med-name>* — Log a specific missed dose',
+      '*took <med-name>* — Log a taken dose',
+      '*status* — Show today\'s completion state',
+      '*report month* — Generate monthly PDF report',
+      '*tags* — List available tags',
+      '*tags add <name>* — Create a custom tag',
+      '*help* — Show this command list',
+    ].join('\n');
+    await replyToUser(env, phone, [helpText], body.messageId);
+    return;
+  }
+
+  if (command.type === 'status') {
+    // Look up today's check-in status
+    const user = await env.DB
+      .prepare('SELECT timezone FROM user WHERE id = ?')
+      .bind(userId)
+      .first<{ timezone: string }>();
+    const timezone = user?.timezone ?? 'UTC';
+    const today = localDateToday(timezone);
+
+    const checkin = await env.DB
+      .prepare('SELECT status FROM daily_checkin WHERE user_id = ? AND checkin_date = ?')
+      .bind(userId, today)
+      .first<{ status: string }>();
+
+    let statusText: string;
+    if (!checkin) {
+      statusText = `📊 *Status for ${today}:*\nNo check-in started yet. Send *checkin* to begin.`;
+    } else if (checkin.status === 'complete') {
+      statusText = `📊 *Status for ${today}:*\n✅ Check-in complete.`;
+    } else {
+      statusText = `📊 *Status for ${today}:*\n⏳ Check-in in progress (${checkin.status}). Send *checkin* to resume.`;
+    }
+
+    await replyToUser(env, phone, [statusText], body.messageId);
+    return;
+  }
+
+  if (command.type === 'report_month') {
+    await replyToUser(
+      env,
+      phone,
+      ['📄 Monthly report generation is not yet available. Coming soon!'],
+      body.messageId,
+    );
+    return;
+  }
+
+  // Unrecognized command — send help hint
   console.log(
     JSON.stringify({
       level: 'info',
       handler: 'inbound-message',
       messageId: body.messageId,
       commandType: command.type,
-      msg: 'Command dispatched (stub)',
+      msg: 'Unrecognized command',
     }),
+  );
+  await replyToUser(
+    env,
+    phone,
+    ['I didn\'t recognize that command. Send *help* to see available commands.'],
+    body.messageId,
   );
 }
 
