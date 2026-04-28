@@ -20,19 +20,19 @@ Replace plain-text question prompts in the daily check-in flow with interactive 
     - Update all existing return sites in `checkin-flow.ts` that return `string[]` to use `textMessages()` so they produce `OutboundMessage[]`
     - _Requirements: 3.6_
 
-- [ ] 2. Implement `buildQuestionMessage` in `checkin-flow.ts`
-  - [~] 2.1 Create the `buildQuestionMessage` function
+- [x] 2. Implement `buildQuestionMessage` in `checkin-flow.ts`
+  - [x] 2.1 Create the `buildQuestionMessage` function
     - Implement the pure function that converts a `QuestionDefinition` into the appropriate `OutboundMessage` based on question type
     - For `ordinal` questions: produce a `ListOutboundMessage` with rows from `scale.min` to `scale.max`, including scale labels on first and last rows
     - For `structured` questions: produce a `ButtonsOutboundMessage` with three buttons (Yes/No/Partial) with IDs `"yes"`, `"no"`, `"partial"`
     - For `numeric` and `text` questions: produce a `TextOutboundMessage`
     - Include the progress indicator `(N/M)` in the body text
     - _Requirements: 3.2, 3.3, 3.4, 3.5_
-  - [~] 2.2 Replace `formatQuestionPrompt` calls with `buildQuestionMessage`
+  - [x] 2.2 Replace `formatQuestionPrompt` calls with `buildQuestionMessage`
     - Update `startCheckin` and `processAnswer` in `checkin-flow.ts` to use `buildQuestionMessage` instead of `formatQuestionPrompt` when building question prompts
     - Ensure non-question messages (confirmations, resumption notices, completion summaries) still use `TextOutboundMessage` via `textMessages()`
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
-  - [~] 2.3 Write unit tests for `buildQuestionMessage`
+  - [x] 2.3 Write unit tests for `buildQuestionMessage`
     - Test ordinal question produces `ListOutboundMessage` with correct row count and IDs
     - Test structured question produces `ButtonsOutboundMessage` with exactly 3 buttons
     - Test numeric question produces `TextOutboundMessage`
@@ -40,11 +40,11 @@ Replace plain-text question prompts in the daily check-in flow with interactive 
     - Test progress indicator is included in body
     - Test scale labels appear on first and last rows for ordinal questions
     - _Requirements: 3.2, 3.3, 3.4, 3.5_
-  - [~] 2.4 Write property test for `buildQuestionMessage` — valid type and non-empty body
+  - [x] 2.4 Write property test for `buildQuestionMessage` — valid type and non-empty body
     - **Property 3: All OutboundMessages have a valid type and non-empty body**
     - Generate random `QuestionDefinition` objects of all types, verify output has valid `type` and non-empty `body` containing the prompt
     - **Validates: Requirements 3.1**
-  - [~] 2.5 Write property test for ordinal question list rows
+  - [x] 2.5 Write property test for ordinal question list rows
     - **Property 4: Ordinal questions produce list messages with correct scale rows**
     - Generate random ordinal questions with varying `scale.min` and `scale.max`, verify row count equals `(max - min + 1)` and each row ID matches its scale value
     - **Validates: Requirements 3.2**

@@ -265,6 +265,64 @@ function formatQuestionPrompt(
   return `${progress} ${question.prompt}`;
 }
 
+/**
+ * Build an OutboundMessage for a check-in question based on its type.
+ * Includes the progress indicator in the body text.
+ *
+ * - ordinal → ListOutboundMessage with rows from scale.min to scale.max
+ * - structured → ButtonsOutboundMessage with Yes/No/Partial buttons
+ * - numeric, text → TextOutboundMessage
+ *
+ * Validates: Requirements 3.2, 3.3, 3.4, 3.5
+ */
+export function buildQuestionMessage(
+  question: QuestionDefinition,
+  questionIndex: number,
+  totalQuestions: number,
+): OutboundMessage {
+  const progress = `(${questionIndex + 1}/${totalQuestions})`;
+  const body = `${progress} ${question.prompt}`;
+
+  switch (question.type) {
+    case 'ordinal': {
+      const min = question.scale?.min ?? 0;
+      const max = question.scale?.max ?? 5;
+      const rows: ListRow[] = [];
+      for (let i = min; i <= max; i++) {
+        let title = `${i}`;
+        if (i === min && question.scale?.labels?.min) {
+          title = `${i} — ${question.scale.labels.min}`;
+        } else if (i === max && question.scale?.labels?.max) {
+          title = `${i} — ${question.scale.labels.max}`;
+        }
+        rows.push({ id: String(i), title });
+      }
+      return {
+        type: 'list',
+        body,
+        buttonLabel: 'Choose a value',
+        sections: [{ rows }],
+      };
+    }
+
+    case 'structured':
+      return {
+        type: 'buttons',
+        body,
+        buttons: [
+          { id: 'yes', title: 'Yes' },
+          { id: 'no', title: 'No' },
+          { id: 'partial', title: 'Partial' },
+        ],
+      };
+
+    case 'numeric':
+    case 'text':
+    default:
+      return { type: 'text', body };
+  }
+}
+
 /** Format the invalid input message for a question type. */
 function formatInvalidInputMessage(question: QuestionDefinition): string {
   switch (question.type) {
@@ -413,10 +471,12 @@ export async function startCheckin(
     const progress = getSessionProgress(existingSession);
     const total = getEnabledQuestions().length;
     return {
-      messages: textMessages([
-        `Resuming your check-in (${progress.answered + progress.skipped}/${total} done).`,
-        formatQuestionPrompt(question, existingSession.currentQuestionIndex, total),
-      ]),
+      messages: [
+        ...textMessages([
+          `Resuming your check-in (${progress.answered + progress.skipped}/${total} done).`,
+        ]),
+        buildQuestionMessage(question, existingSession.currentQuestionIndex, total),
+      ],
       completed: false,
     };
   }
@@ -436,10 +496,10 @@ export async function startCheckin(
   const dateLabel = isRetroactive ? `${checkinDate} (retroactive)` : checkinDate;
 
   return {
-    messages: textMessages([
-      `Starting daily check-in for ${dateLabel}.`,
-      formatQuestionPrompt(question, 0, total),
-    ]),
+    messages: [
+      ...textMessages([`Starting daily check-in for ${dateLabel}.`]),
+      buildQuestionMessage(question, 0, total),
+    ],
     completed: false,
   };
 }
@@ -523,16 +583,16 @@ export async function processAnswer(
     };
   }
 
-  const msgs: string[] = [];
+  const messages: OutboundMessage[] = [];
 
   // Add a brief confirmation for the answered question
   if (parsed.skipped) {
-    msgs.push('Skipped.');
+    messages.push(...textMessages(['Skipped.']));
   }
 
-  msgs.push(
-    formatQuestionPrompt(nextQuestion, updatedSession.currentQuestionIndex, total),
+  messages.push(
+    buildQuestionMessage(nextQuestion, updatedSession.currentQuestionIndex, total),
   );
 
-  return { messages: textMessages(msgs), completed: false };
+  return { messages, completed: false };
 }

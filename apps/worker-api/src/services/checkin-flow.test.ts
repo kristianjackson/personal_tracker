@@ -18,8 +18,9 @@ import {
   startCheckin,
   processAnswer,
   persistCheckin,
+  buildQuestionMessage,
 } from './checkin-flow';
-import type { CheckinFlowEnv } from './checkin-flow';
+import type { CheckinFlowEnv, OutboundMessage, ListOutboundMessage, ButtonsOutboundMessage, TextOutboundMessage } from './checkin-flow';
 import type { CheckinSession, CheckinAnswer } from './checkin-session';
 import { getEnabledQuestions, NOTE_MAX_LENGTH } from '@symptom-tracker/shared';
 
@@ -820,5 +821,238 @@ describe('retroactive check-in flow', () => {
 
     expect(lastResult!.completed).toBe(true);
     expect(lastResult!.messages[0].body).toContain('Check-in saved');
+  });
+});
+
+// ── buildQuestionMessage unit tests ─────────────────────────────────
+
+describe('buildQuestionMessage', () => {
+  const questions = getEnabledQuestions();
+  const sleepQ = questions.find((q) => q.variable_code === 'DAT-001')!;   // numeric
+  const sleepQualQ = questions.find((q) => q.variable_code === 'DAT-002')!; // ordinal
+  const moodQ = questions.find((q) => q.variable_code === 'DAT-003')!;     // ordinal
+  const medsQ = questions.find((q) => q.variable_code === 'DAT-013')!;     // structured
+  const noteQ = questions.find((q) => q.variable_code === 'DAT-015')!;     // text
+
+  it('produces a ListOutboundMessage for ordinal questions with correct row count and IDs', () => {
+    const msg = buildQuestionMessage(sleepQualQ, 1, 15);
+    expect(msg.type).toBe('list');
+    const listMsg = msg as ListOutboundMessage;
+    const rows = listMsg.sections[0].rows;
+    // DAT-002 has scale 0–5, so 6 rows
+    expect(rows.length).toBe(6);
+    // Each row ID should be the string of its scale value
+    for (let i = 0; i <= 5; i++) {
+      expect(rows[i].id).toBe(String(i));
+    }
+  });
+
+  it('produces a ButtonsOutboundMessage for structured questions with exactly 3 buttons', () => {
+    const msg = buildQuestionMessage(medsQ, 12, 15);
+    expect(msg.type).toBe('buttons');
+    const btnMsg = msg as ButtonsOutboundMessage;
+    expect(btnMsg.buttons.length).toBe(3);
+    expect(btnMsg.buttons[0].id).toBe('yes');
+    expect(btnMsg.buttons[0].title).toBe('Yes');
+    expect(btnMsg.buttons[1].id).toBe('no');
+    expect(btnMsg.buttons[1].title).toBe('No');
+    expect(btnMsg.buttons[2].id).toBe('partial');
+    expect(btnMsg.buttons[2].title).toBe('Partial');
+  });
+
+  it('produces a TextOutboundMessage for numeric questions', () => {
+    const msg = buildQuestionMessage(sleepQ, 0, 15);
+    expect(msg.type).toBe('text');
+  });
+
+  it('produces a TextOutboundMessage for text questions', () => {
+    const msg = buildQuestionMessage(noteQ, 14, 15);
+    expect(msg.type).toBe('text');
+  });
+
+  it('includes the progress indicator in the body', () => {
+    const msg = buildQuestionMessage(sleepQ, 0, 15);
+    expect(msg.body).toContain('(1/15)');
+
+    const msg2 = buildQuestionMessage(medsQ, 12, 15);
+    expect(msg2.body).toContain('(13/15)');
+  });
+
+  it('includes scale labels on first and last rows for ordinal questions', () => {
+    const msg = buildQuestionMessage(sleepQualQ, 1, 15) as ListOutboundMessage;
+    const rows = msg.sections[0].rows;
+    // First row should include min label
+    expect(rows[0].title).toContain('terrible');
+    expect(rows[0].title).toContain('0');
+    // Last row should include max label
+    expect(rows[rows.length - 1].title).toContain('great');
+    expect(rows[rows.length - 1].title).toContain('5');
+    // Middle rows should just be the number
+    expect(rows[2].title).toBe('2');
+  });
+});
+
+// ── Property-based tests for buildQuestionMessage ───────────────────
+
+import fc from 'fast-check';
+import type { QuestionDefinition, QuestionType } from '@symptom-tracker/shared';
+
+/**
+ * Arbitrary generator for QuestionDefinition objects of all types.
+ */
+function arbQuestionDefinition(): fc.Arbitrary<QuestionDefinition> {
+  const arbQuestionType = fc.constantFrom<QuestionType>('numeric', 'ordinal', 'structured', 'text');
+
+  return arbQuestionType.chain((type) => {
+    const base = {
+      variable_code: fc.string({ minLength: 1, maxLength: 10 }).map((s) => `DAT-${s}`),
+      prompt: fc.string({ minLength: 1, maxLength: 100 }),
+      unit: fc.constant(null as string | null),
+      order: fc.nat({ max: 100 }),
+      enabled: fc.constant(true),
+      optional: fc.boolean(),
+    };
+
+    if (type === 'ordinal') {
+      return fc.record({
+        ...base,
+        type: fc.constant('ordinal' as const),
+        scale: fc.record({
+          min: fc.integer({ min: 0, max: 4 }),
+          max: fc.integer({ min: 1, max: 10 }),
+        }).filter((s) => s.max > s.min && s.max - s.min <= 9)
+          .chain((s) =>
+            fc.record({
+              min: fc.constant(s.min),
+              max: fc.constant(s.max),
+              labels: fc.record({
+                min: fc.string({ minLength: 1, maxLength: 20 }),
+                max: fc.string({ minLength: 1, maxLength: 20 }),
+              }),
+            }),
+          ),
+      });
+    }
+
+    return fc.record({
+      ...base,
+      type: fc.constant(type),
+      scale: fc.constant(null),
+    });
+  });
+}
+
+describe('Property 3: All OutboundMessages have a valid type and non-empty body', () => {
+  /**
+   * **Validates: Requirements 3.1**
+   *
+   * For any QuestionDefinition of any type and any valid question index and total,
+   * buildQuestionMessage produces an OutboundMessage with a valid type and non-empty body
+   * containing the question prompt.
+   */
+  it('buildQuestionMessage always produces a valid type and non-empty body containing the prompt', () => {
+    fc.assert(
+      fc.property(
+        arbQuestionDefinition(),
+        fc.nat({ max: 99 }),
+        fc.integer({ min: 1, max: 100 }),
+        (question, index, total) => {
+          // Ensure index < total
+          const safeIndex = index % total;
+          const msg = buildQuestionMessage(question, safeIndex, total);
+
+          // Type must be one of the valid types
+          expect(['text', 'buttons', 'list']).toContain(msg.type);
+
+          // Body must be non-empty
+          expect(msg.body.length).toBeGreaterThan(0);
+
+          // Body must contain the prompt
+          expect(msg.body).toContain(question.prompt);
+
+          // Body must contain the progress indicator
+          expect(msg.body).toContain(`(${safeIndex + 1}/${total})`);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+});
+
+/**
+ * Arbitrary generator for ordinal QuestionDefinition objects with varying scales.
+ */
+function arbOrdinalQuestion(): fc.Arbitrary<QuestionDefinition> {
+  return fc.record({
+    min: fc.integer({ min: 0, max: 4 }),
+    max: fc.integer({ min: 1, max: 10 }),
+  })
+    .filter((s) => s.max > s.min && s.max - s.min <= 9)
+    .chain((s) =>
+      fc.record({
+        variable_code: fc.string({ minLength: 1, maxLength: 10 }).map((v) => `DAT-${v}`),
+        prompt: fc.string({ minLength: 1, maxLength: 100 }),
+        type: fc.constant('ordinal' as const),
+        scale: fc.record({
+          min: fc.constant(s.min),
+          max: fc.constant(s.max),
+          labels: fc.record({
+            min: fc.string({ minLength: 1, maxLength: 20 }),
+            max: fc.string({ minLength: 1, maxLength: 20 }),
+          }),
+        }),
+        unit: fc.constant(null as string | null),
+        order: fc.nat({ max: 100 }),
+        enabled: fc.constant(true),
+        optional: fc.boolean(),
+      }),
+    );
+}
+
+describe('Property 4: Ordinal questions produce list messages with correct scale rows', () => {
+  /**
+   * **Validates: Requirements 3.2**
+   *
+   * For any ordinal QuestionDefinition with scale.min and scale.max,
+   * buildQuestionMessage produces a ListOutboundMessage with exactly
+   * (max - min + 1) rows, where each row's id is the string of its scale value,
+   * and the first and last rows include the scale labels.
+   */
+  it('ordinal questions produce list messages with correct row count and IDs', () => {
+    fc.assert(
+      fc.property(
+        arbOrdinalQuestion(),
+        fc.nat({ max: 99 }),
+        fc.integer({ min: 1, max: 100 }),
+        (question, index, total) => {
+          const safeIndex = index % total;
+          const msg = buildQuestionMessage(question, safeIndex, total);
+
+          // Must be a list message
+          expect(msg.type).toBe('list');
+          const listMsg = msg as ListOutboundMessage;
+
+          const min = question.scale!.min;
+          const max = question.scale!.max;
+          const expectedRowCount = max - min + 1;
+          const rows = listMsg.sections[0].rows;
+
+          // Row count must match scale range
+          expect(rows.length).toBe(expectedRowCount);
+
+          // Each row ID must be the string of its scale value
+          for (let i = 0; i < rows.length; i++) {
+            expect(rows[i].id).toBe(String(min + i));
+          }
+
+          // First row title should include the min label
+          expect(rows[0].title).toContain(question.scale!.labels.min);
+
+          // Last row title should include the max label
+          expect(rows[rows.length - 1].title).toContain(question.scale!.labels.max);
+        },
+      ),
+      { numRuns: 100 },
+    );
   });
 });
