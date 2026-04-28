@@ -141,17 +141,17 @@ Replace plain-text question prompts in the daily check-in flow with interactive 
     - Verify `parseStructuredAnswer` accepts `"yes"`, `"no"`, `"partial"` and returns `1`, `0`, `0.5` respectively
     - **Validates: Requirements 6.1, 6.2**
 
-- [ ] 8. Update existing tests for new OutboundMessage types
-  - [~] 8.1 Update existing `checkin-flow.test.ts` assertions
+- [x] 8. Update existing tests for new OutboundMessage types
+  - [x] 8.1 Update existing `checkin-flow.test.ts` assertions
     - Update all test assertions that check `result.messages` to expect `OutboundMessage[]` instead of `string[]`
     - Verify non-question messages produce `TextOutboundMessage` objects
     - Verify skip commands still work for all question types
     - _Requirements: 3.6, 6.1, 6.2, 6.3_
-  - [~] 8.2 Update existing `queue-consumer.test.ts` assertions
+  - [x] 8.2 Update existing `queue-consumer.test.ts` assertions
     - Update test mocks and assertions to work with `OutboundMessage[]` instead of `string[]`
     - _Requirements: 5.1, 5.2_
 
-- [~] 9. Final checkpoint — Ensure all tests pass
+- [x] 9. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
