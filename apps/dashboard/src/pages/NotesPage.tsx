@@ -12,6 +12,7 @@ import { buildNotesQueryString, PREDEFINED_TAGS } from './notes-helpers.js';
 import DateRangeSelector from '../components/DateRangeSelector.js';
 import TagFilter from '../components/TagFilter.js';
 import NoteCard from '../components/NoteCard.js';
+import { apiUrl } from '../api.js';
 import './NotesPage.css';
 
 const PAGE_SIZE = 20;
@@ -60,7 +61,7 @@ export default function NotesPage() {
         tag: activeTag || undefined,
         q: debouncedSearch || undefined,
       });
-      const res = await fetch(`/api/notes${qs}`);
+      const res = await fetch(apiUrl(`/api/notes${qs}`));
       if (!res.ok) {
         throw new Error(`API returned ${res.status}`);
       }

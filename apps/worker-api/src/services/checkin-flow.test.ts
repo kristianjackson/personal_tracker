@@ -309,9 +309,9 @@ describe('startCheckin', () => {
 
     expect(result.completed).toBe(false);
     expect(result.messages.length).toBe(2);
-    expect(result.messages[0]).toContain(TEST_DATE);
-    expect(result.messages[1]).toContain('(1/');
-    expect(result.messages[1]).toContain('sleep');
+    expect(result.messages[0].body).toContain(TEST_DATE);
+    expect(result.messages[1].body).toContain('(1/');
+    expect(result.messages[1].body).toContain('sleep');
   });
 
   it('resumes an existing session from the correct question', async () => {
@@ -326,9 +326,9 @@ describe('startCheckin', () => {
     const result = await startCheckin(env, TEST_USER_ID, TEST_DATE);
     expect(result.completed).toBe(false);
     expect(result.messages.length).toBe(2);
-    expect(result.messages[0]).toContain('Resuming');
+    expect(result.messages[0].body).toContain('Resuming');
     // Should be on question 3 (mood)
-    expect(result.messages[1]).toContain('(3/');
+    expect(result.messages[1].body).toContain('(3/');
   });
 });
 
@@ -340,7 +340,7 @@ describe('processAnswer', () => {
     const result = await processAnswer(env, TEST_USER_ID, '7');
 
     expect(result.completed).toBe(false);
-    expect(result.messages[0]).toContain('No active check-in session');
+    expect(result.messages[0].body).toContain('No active check-in session');
   });
 
   it('advances to the next question on valid answer', async () => {
@@ -350,7 +350,7 @@ describe('processAnswer', () => {
     const result = await processAnswer(env, TEST_USER_ID, '7');
     expect(result.completed).toBe(false);
     // Should show the next question (sleep quality)
-    expect(result.messages.some((m) => m.includes('(2/'))).toBe(true);
+    expect(result.messages.some((m) => m.body.includes('(2/'))).toBe(true);
   });
 
   it('returns invalid input message for bad numeric input', async () => {
@@ -359,7 +359,7 @@ describe('processAnswer', () => {
 
     const result = await processAnswer(env, TEST_USER_ID, 'abc');
     expect(result.completed).toBe(false);
-    expect(result.messages[0]).toContain('number');
+    expect(result.messages[0].body).toContain('number');
   });
 
   it('returns invalid input message for out-of-range ordinal', async () => {
@@ -372,8 +372,8 @@ describe('processAnswer', () => {
     // Now on sleep quality (ordinal 0-5), try 9
     const result = await processAnswer(env, TEST_USER_ID, '9');
     expect(result.completed).toBe(false);
-    expect(result.messages[0]).toContain('0');
-    expect(result.messages[0]).toContain('5');
+    expect(result.messages[0].body).toContain('0');
+    expect(result.messages[0].body).toContain('5');
   });
 
   it('handles skip command and advances', async () => {
@@ -382,9 +382,9 @@ describe('processAnswer', () => {
 
     const result = await processAnswer(env, TEST_USER_ID, 'skip');
     expect(result.completed).toBe(false);
-    expect(result.messages[0]).toBe('Skipped.');
+    expect(result.messages[0].body).toBe('Skipped.');
     // Next question prompt should follow
-    expect(result.messages[1]).toContain('(2/');
+    expect(result.messages[1].body).toContain('(2/');
   });
 
   it('handles "s" as skip', async () => {
@@ -393,7 +393,7 @@ describe('processAnswer', () => {
 
     const result = await processAnswer(env, TEST_USER_ID, 's');
     expect(result.completed).toBe(false);
-    expect(result.messages[0]).toBe('Skipped.');
+    expect(result.messages[0].body).toBe('Skipped.');
   });
 
   it('handles "next" as skip', async () => {
@@ -402,7 +402,7 @@ describe('processAnswer', () => {
 
     const result = await processAnswer(env, TEST_USER_ID, 'next');
     expect(result.completed).toBe(false);
-    expect(result.messages[0]).toBe('Skipped.');
+    expect(result.messages[0].body).toBe('Skipped.');
   });
 
   it('completes the session after all questions are answered', async () => {
@@ -434,7 +434,7 @@ describe('processAnswer', () => {
     }
 
     expect(lastResult!.completed).toBe(true);
-    expect(lastResult!.messages[0]).toContain('Check-in saved');
+    expect(lastResult!.messages[0].body).toContain('Check-in saved');
   });
 
   it('completes with all questions skipped', async () => {
@@ -447,7 +447,7 @@ describe('processAnswer', () => {
     }
 
     expect(lastResult!.completed).toBe(true);
-    expect(lastResult!.messages[0]).toContain('Check-in saved');
+    expect(lastResult!.messages[0].body).toContain('Check-in saved');
   });
 
   it('shows correct progress counts in completion message', async () => {
@@ -467,7 +467,7 @@ describe('processAnswer', () => {
 
     expect(lastResult!.completed).toBe(true);
     // Should show 2 answered out of total
-    expect(lastResult!.messages[0]).toContain('2/');
+    expect(lastResult!.messages[0].body).toContain('2/');
   });
 });
 
@@ -611,7 +611,7 @@ describe('full check-in flow integration', () => {
     // Start check-in
     const start = await startCheckin(env, TEST_USER_ID, TEST_DATE);
     expect(start.completed).toBe(false);
-    expect(start.messages[1]).toContain('sleep');
+    expect(start.messages[1].body).toContain('sleep');
 
     // Answer all 15 questions
     const answers = [
@@ -640,7 +640,7 @@ describe('full check-in flow integration', () => {
     // Last answer should complete the session
     const final = await processAnswer(env, TEST_USER_ID, answers[answers.length - 1]);
     expect(final.completed).toBe(true);
-    expect(final.messages[0]).toContain('Check-in saved');
+    expect(final.messages[0].body).toContain('Check-in saved');
 
     // Session should be deleted from KV
     const sessionAfter = await env.KV.get(`checkin-session:${TEST_USER_ID}`);
@@ -676,7 +676,7 @@ describe('full check-in flow integration', () => {
 
     expect(lastResult!.completed).toBe(true);
     // 8 answered, 7 skipped → should show 8/15
-    expect(lastResult!.messages[0]).toContain('8/');
+    expect(lastResult!.messages[0].body).toContain('8/');
   });
 
   it('handles structured meds answer with "no"', async () => {
@@ -692,7 +692,7 @@ describe('full check-in flow integration', () => {
     const result = await processAnswer(env, TEST_USER_ID, 'no');
     expect(result.completed).toBe(false);
     // Should advance to side effects question
-    expect(result.messages.some((m) => m.includes('side effects') || m.includes('(14/'))).toBe(true);
+    expect(result.messages.some((m) => m.body.includes('side effects') || m.body.includes('(14/'))).toBe(true);
   });
 
   it('handles structured meds answer with "partial"', async () => {
@@ -718,8 +718,8 @@ describe('retroactive check-in flow', () => {
 
     const result = await startCheckin(env, TEST_USER_ID, retroDate, true);
     expect(result.completed).toBe(false);
-    expect(result.messages[0]).toContain(retroDate);
-    expect(result.messages[0]).toContain('retroactive');
+    expect(result.messages[0].body).toContain(retroDate);
+    expect(result.messages[0].body).toContain('retroactive');
   });
 
   it('starts a non-retroactive check-in without "(retroactive)" label', async () => {
@@ -727,8 +727,8 @@ describe('retroactive check-in flow', () => {
 
     const result = await startCheckin(env, TEST_USER_ID, TEST_DATE, false);
     expect(result.completed).toBe(false);
-    expect(result.messages[0]).toContain(TEST_DATE);
-    expect(result.messages[0]).not.toContain('retroactive');
+    expect(result.messages[0].body).toContain(TEST_DATE);
+    expect(result.messages[0].body).not.toContain('retroactive');
   });
 
   it('persists is_retroactive=1 for retroactive check-ins', async () => {
@@ -806,7 +806,7 @@ describe('retroactive check-in flow', () => {
     // Start retroactive check-in
     const start = await startCheckin(env, TEST_USER_ID, retroDate, true);
     expect(start.completed).toBe(false);
-    expect(start.messages[0]).toContain('retroactive');
+    expect(start.messages[0].body).toContain('retroactive');
 
     // Answer all questions
     const answers = [
@@ -819,6 +819,6 @@ describe('retroactive check-in flow', () => {
     }
 
     expect(lastResult!.completed).toBe(true);
-    expect(lastResult!.messages[0]).toContain('Check-in saved');
+    expect(lastResult!.messages[0].body).toContain('Check-in saved');
   });
 });

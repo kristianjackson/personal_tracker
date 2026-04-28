@@ -14,6 +14,7 @@ import {
   buildHeatmapData,
   statusLabel,
 } from './overview-helpers.js';
+import { apiUrl } from '../api.js';
 import './OverviewPage.css';
 
 export type { OverviewData, CheckinRecord };
@@ -248,8 +249,8 @@ export default function OverviewPage() {
     setError(null);
     try {
       const [overviewRes, checkinsRes] = await Promise.all([
-        fetch(`/api/overview?start=${start}&end=${end}`),
-        fetch(`/api/checkins?start=${start}&end=${end}`),
+        fetch(apiUrl(`/api/overview?start=${start}&end=${end}`)),
+        fetch(apiUrl(`/api/checkins?start=${start}&end=${end}`)),
       ]);
 
       if (!overviewRes.ok) {

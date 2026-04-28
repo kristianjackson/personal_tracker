@@ -42,10 +42,61 @@ export interface CheckinFlowEnv {
   KV: KVNamespace;
 }
 
+// ── OutboundMessage types ───────────────────────────────────────────
+
+/** Base fields shared by all outbound message types. */
+export interface OutboundMessageBase {
+  body: string;
+}
+
+/** A plain text message — used for numeric questions, text questions, and non-question messages. */
+export interface TextOutboundMessage extends OutboundMessageBase {
+  type: 'text';
+}
+
+/** A button option for interactive button messages. */
+export interface ButtonOption {
+  id: string;    // Reply ID sent back when user taps (max 256 chars)
+  title: string; // Button label displayed to user (max 20 chars)
+}
+
+/** An interactive button message — used for structured questions (yes/no/partial). */
+export interface ButtonsOutboundMessage extends OutboundMessageBase {
+  type: 'buttons';
+  buttons: ButtonOption[]; // 1–3 buttons
+}
+
+/** A list row for interactive list messages. */
+export interface ListRow {
+  id: string;          // Reply ID sent back when user taps (max 200 chars)
+  title: string;       // Row label displayed to user (max 24 chars)
+  description?: string; // Optional description below the title (max 72 chars)
+}
+
+/** An interactive list message — used for ordinal questions (0–5 scale). */
+export interface ListOutboundMessage extends OutboundMessageBase {
+  type: 'list';
+  buttonLabel: string;  // Label on the button that opens the list (max 20 chars)
+  sections: Array<{
+    title?: string;     // Optional section header
+    rows: ListRow[];    // 1–10 rows per section
+  }>;
+}
+
+/** Discriminated union of all outbound message types. */
+export type OutboundMessage = TextOutboundMessage | ButtonsOutboundMessage | ListOutboundMessage;
+
+// ── OutboundMessage helpers ─────────────────────────────────────────
+
+/** Wrap plain strings as TextOutboundMessage objects. */
+export function textMessages(strings: string[]): OutboundMessage[] {
+  return strings.map((s) => ({ type: 'text' as const, body: s }));
+}
+
 /** Result returned by the flow handler to the caller. */
 export interface CheckinFlowResult {
   /** Response message(s) to send back to the user. */
-  messages: string[];
+  messages: OutboundMessage[];
   /** Whether the check-in session is now complete. */
   completed: boolean;
 }
@@ -352,9 +403,9 @@ export async function startCheckin(
       await deleteSession(env.KV, userId);
       const progress = getSessionProgress(existingSession);
       return {
-        messages: [
+        messages: textMessages([
           `✓ Check-in saved (${progress.answered}/${progress.total} answered).`,
-        ],
+        ]),
         completed: true,
       };
     }
@@ -362,10 +413,10 @@ export async function startCheckin(
     const progress = getSessionProgress(existingSession);
     const total = getEnabledQuestions().length;
     return {
-      messages: [
+      messages: textMessages([
         `Resuming your check-in (${progress.answered + progress.skipped}/${total} done).`,
         formatQuestionPrompt(question, existingSession.currentQuestionIndex, total),
-      ],
+      ]),
       completed: false,
     };
   }
@@ -377,7 +428,7 @@ export async function startCheckin(
 
   if (!question) {
     return {
-      messages: ['No questions configured for check-in.'],
+      messages: textMessages(['No questions configured for check-in.']),
       completed: true,
     };
   }
@@ -385,10 +436,10 @@ export async function startCheckin(
   const dateLabel = isRetroactive ? `${checkinDate} (retroactive)` : checkinDate;
 
   return {
-    messages: [
+    messages: textMessages([
       `Starting daily check-in for ${dateLabel}.`,
       formatQuestionPrompt(question, 0, total),
-    ],
+    ]),
     completed: false,
   };
 }
@@ -408,7 +459,7 @@ export async function processAnswer(
 
   if (!session) {
     return {
-      messages: ['No active check-in session. Send "checkin" to start one.'],
+      messages: textMessages(['No active check-in session. Send "checkin" to start one.']),
       completed: false,
     };
   }
@@ -420,9 +471,9 @@ export async function processAnswer(
     await deleteSession(env.KV, userId);
     const progress = getSessionProgress(session);
     return {
-      messages: [
+      messages: textMessages([
         `✓ Check-in saved (${progress.answered}/${progress.total} answered).`,
-      ],
+      ]),
       completed: true,
     };
   }
@@ -433,7 +484,7 @@ export async function processAnswer(
   // If the value is null and not skipped, the input was invalid
   if (parsed.value === null && !parsed.skipped) {
     return {
-      messages: [formatInvalidInputMessage(currentQuestion)],
+      messages: textMessages([formatInvalidInputMessage(currentQuestion)]),
       completed: false,
     };
   }
@@ -453,9 +504,9 @@ export async function processAnswer(
     await deleteSession(env.KV, userId);
     const progress = getSessionProgress(updatedSession);
     return {
-      messages: [
+      messages: textMessages([
         `✓ Check-in saved (${progress.answered}/${progress.total} answered).`,
-      ],
+      ]),
       completed: true,
     };
   }
@@ -467,21 +518,21 @@ export async function processAnswer(
   if (!nextQuestion) {
     // Shouldn't happen since isSessionComplete was false, but handle defensively
     return {
-      messages: ['Check-in complete.'],
+      messages: textMessages(['Check-in complete.']),
       completed: true,
     };
   }
 
-  const messages: string[] = [];
+  const msgs: string[] = [];
 
   // Add a brief confirmation for the answered question
   if (parsed.skipped) {
-    messages.push('Skipped.');
+    msgs.push('Skipped.');
   }
 
-  messages.push(
+  msgs.push(
     formatQuestionPrompt(nextQuestion, updatedSession.currentQuestionIndex, total),
   );
 
-  return { messages, completed: false };
+  return { messages: textMessages(msgs), completed: false };
 }

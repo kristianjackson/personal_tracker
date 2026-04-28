@@ -18,6 +18,7 @@ import {
 import { formatShortDate } from './overview-helpers.js';
 import DateRangeSelector from '../components/DateRangeSelector.js';
 import TrendChart from '../components/TrendChart.js';
+import { apiUrl } from '../api.js';
 import './TrendsPage.css';
 
 export default function TrendsPage() {
@@ -34,7 +35,7 @@ export default function TrendsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/checkins?start=${range.start}&end=${range.end}`);
+      const res = await fetch(apiUrl(`/api/checkins?start=${range.start}&end=${range.end}`));
       if (!res.ok) {
         throw new Error(`API returned ${res.status}`);
       }

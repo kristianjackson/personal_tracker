@@ -13,6 +13,16 @@ compatibility_date = "2024-12-01"
 # Enable Node.js compat for libraries that need it
 compatibility_flags = ["nodejs_compat"]
 
+# ── Static Assets (Dashboard SPA) ───────────────────────────────────
+# Serves the React dashboard from the same Worker origin.
+# /api/*, /webhook/*, and /health hit the Worker; everything else
+# serves the SPA with index.html fallback for client-side routing.
+[assets]
+directory = "../dashboard/dist"
+not_found_handling = "single-page-application"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/webhook/*", "/health"]
+
 # ── D1 Database ──────────────────────────────────────────────────────
 # Primary relational store for all structured data (users, check-ins,
 # observations, medications, flags, reports, audit events).

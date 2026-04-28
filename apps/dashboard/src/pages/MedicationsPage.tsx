@@ -33,6 +33,7 @@ import {
   EVENT_TYPE_CONFIG,
 } from './medications-helpers.js';
 import type { SideEffectObservation } from './injection-overlay-helpers.js';
+import { apiUrl } from '../api.js';
 import { buildInjectionOverlayData } from './injection-overlay-helpers.js';
 import InjectionOverlay from '../components/InjectionOverlay.js';
 import './MedicationsPage.css';
@@ -105,7 +106,7 @@ export default function MedicationsPage() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/medications?start=${range.start}&end=${range.end}`,
+        apiUrl(`/api/medications?start=${range.start}&end=${range.end}`),
       );
       if (!res.ok) {
         throw new Error(`API returned ${res.status}`);
