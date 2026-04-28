@@ -49,46 +49,46 @@ Replace plain-text question prompts in the daily check-in flow with interactive 
     - Generate random ordinal questions with varying `scale.min` and `scale.max`, verify row count equals `(max - min + 1)` and each row ID matches its scale value
     - **Validates: Requirements 3.2**
 
-- [~] 3. Checkpoint — Ensure all tests pass
+- [x] 3. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Add interactive payload builders and sender to `whatsapp-sender.ts`
-  - [~] 4.1 Implement `buildButtonMessagePayload` function
+- [x] 4. Add interactive payload builders and sender to `whatsapp-sender.ts`
+  - [x] 4.1 Implement `buildButtonMessagePayload` function
     - Create a pure function that builds a WhatsApp Cloud API interactive button message payload
     - Payload must include `messaging_product: "whatsapp"`, `recipient_type: "individual"`, `to`, `type: "interactive"`, `interactive.type: "button"`, `interactive.body.text`, and `interactive.action.buttons` array
     - _Requirements: 1.1, 7.1, 7.2_
-  - [~] 4.2 Implement `buildListMessagePayload` function
+  - [x] 4.2 Implement `buildListMessagePayload` function
     - Create a pure function that builds a WhatsApp Cloud API interactive list message payload
     - Payload must include `messaging_product: "whatsapp"`, `recipient_type: "individual"`, `to`, `type: "interactive"`, `interactive.type: "list"`, `interactive.body.text`, `interactive.action.button`, and `interactive.action.sections` array
     - _Requirements: 2.1, 7.3, 7.4, 7.5_
-  - [~] 4.3 Implement `sendInteractiveMessage` function
+  - [x] 4.3 Implement `sendInteractiveMessage` function
     - Create an async function that dispatches to `buildButtonMessagePayload` or `buildListMessagePayload` based on message type
     - Use the same fetch + error handling pattern as `sendTextMessage`
     - Return `SendResult` with success/failure info
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3_
-  - [~] 4.4 Implement `sendOutboundMessages` function
+  - [x] 4.4 Implement `sendOutboundMessages` function
     - Create an async function that iterates over `OutboundMessage[]`, dispatching `"text"` to `sendTextMessage` and `"buttons"`/`"list"` to `sendInteractiveMessage`
     - Send in order, continue on failure, return all `SendResult` objects
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [~] 4.5 Write unit tests for payload builders and sender functions
+  - [x] 4.5 Write unit tests for payload builders and sender functions
     - Test `buildButtonMessagePayload` produces correct JSON structure for DAT-013 buttons
     - Test `buildListMessagePayload` produces correct JSON structure for DAT-002 list
     - Test `sendInteractiveMessage` success, API error, and network error paths (mock fetch)
     - Test `sendOutboundMessages` dispatches by type, preserves order, and handles failures
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 5.1, 5.2, 5.3, 5.4_
-  - [~] 4.6 Write property test for button payload builder
+  - [x] 4.6 Write property test for button payload builder
     - **Property 1: Button payload builder produces well-formed payloads**
     - Generate random `ButtonsOutboundMessage` objects (1–3 buttons, valid ID/title lengths), verify `buildButtonMessagePayload` output structure matches WhatsApp API spec
     - **Validates: Requirements 1.1, 7.1, 7.2**
-  - [~] 4.7 Write property test for list payload builder
+  - [x] 4.7 Write property test for list payload builder
     - **Property 2: List payload builder produces well-formed payloads**
     - Generate random `ListOutboundMessage` objects (1–10 rows, valid ID/title/buttonLabel lengths), verify `buildListMessagePayload` output structure matches WhatsApp API spec
     - **Validates: Requirements 2.1, 7.3, 7.4, 7.5**
-  - [~] 4.8 Write property test for send order
+  - [x] 4.8 Write property test for send order
     - **Property 8: Outbound messages are sent in input order**
     - Generate random arrays of mixed `OutboundMessage` types, mock senders, verify the i-th send call corresponds to the i-th input message
     - **Validates: Requirements 5.3**
-  - [~] 4.9 Write property test for payload round-trip
+  - [x] 4.9 Write property test for payload round-trip
     - **Property 10: Payload construction round-trip**
     - Generate random `OutboundMessage` objects, build payloads via builders, extract body text and action metadata back, verify equivalence to original fields
     - **Validates: Requirements 7.6**
