@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { handleQueueBatch } from './queue-consumer';
+import { handleQueueBatch, extractTextFromPayload } from './queue-consumer';
 import type { InboundQueueMessage, QueueMessageType } from './queue-publisher';
 import type { Env } from '../index';
+import fc from 'fast-check';
 
 /**
  * Tests for the queue consumer service.
@@ -351,5 +352,246 @@ describe('handleQueueBatch', () => {
       expect(parsed.succeeded).toBe(2);
       expect(parsed.failed).toBe(0);
     });
+  });
+});
+
+
+// ── Webhook payload helpers ─────────────────────────────────────────
+
+/** Build a WhatsApp webhook payload with a text message. */
+function buildTextWebhookPayload(text: string, from = '+1234567890'): string {
+  return JSON.stringify({
+    entry: [{
+      changes: [{
+        value: {
+          messages: [{
+            type: 'text',
+            from,
+            text: { body: text },
+          }],
+        },
+      }],
+    }],
+  });
+}
+
+/** Build a WhatsApp webhook payload with an interactive button reply. */
+function buildButtonReplyPayload(replyId: string, from = '+1234567890'): string {
+  return JSON.stringify({
+    entry: [{
+      changes: [{
+        value: {
+          messages: [{
+            type: 'interactive',
+            from,
+            interactive: {
+              type: 'button_reply',
+              button_reply: { id: replyId, title: 'Some title' },
+            },
+          }],
+        },
+      }],
+    }],
+  });
+}
+
+/** Build a WhatsApp webhook payload with an interactive list reply. */
+function buildListReplyPayload(replyId: string, from = '+1234567890'): string {
+  return JSON.stringify({
+    entry: [{
+      changes: [{
+        value: {
+          messages: [{
+            type: 'interactive',
+            from,
+            interactive: {
+              type: 'list_reply',
+              list_reply: { id: replyId, title: 'Some title' },
+            },
+          }],
+        },
+      }],
+    }],
+  });
+}
+
+/** Build a WhatsApp webhook payload with an unsupported message type. */
+function buildUnsupportedPayload(msgType: string, from = '+1234567890'): string {
+  return JSON.stringify({
+    entry: [{
+      changes: [{
+        value: {
+          messages: [{
+            type: msgType,
+            from,
+          }],
+        },
+      }],
+    }],
+  });
+}
+
+// ── Task 6.4: Unit tests for extractTextFromPayload interactive handling ──
+
+describe('extractTextFromPayload', () => {
+  describe('interactive button reply', () => {
+    it('returns the button reply ID', () => {
+      const payload = buildButtonReplyPayload('yes');
+      expect(extractTextFromPayload(payload)).toBe('yes');
+    });
+
+    it('returns a numeric button reply ID', () => {
+      const payload = buildButtonReplyPayload('3');
+      expect(extractTextFromPayload(payload)).toBe('3');
+    });
+  });
+
+  describe('interactive list reply', () => {
+    it('returns the list reply ID', () => {
+      const payload = buildListReplyPayload('4');
+      expect(extractTextFromPayload(payload)).toBe('4');
+    });
+
+    it('returns a text list reply ID', () => {
+      const payload = buildListReplyPayload('partial');
+      expect(extractTextFromPayload(payload)).toBe('partial');
+    });
+  });
+
+  describe('plain text extraction (backward compatibility)', () => {
+    it('returns the text body for text messages', () => {
+      const payload = buildTextWebhookPayload('hello world');
+      expect(extractTextFromPayload(payload)).toBe('hello world');
+    });
+
+    it('returns the text body for command messages', () => {
+      const payload = buildTextWebhookPayload('checkin');
+      expect(extractTextFromPayload(payload)).toBe('checkin');
+    });
+  });
+
+  describe('unsupported message types', () => {
+    it('returns null for image messages', () => {
+      const payload = buildUnsupportedPayload('image');
+      expect(extractTextFromPayload(payload)).toBeNull();
+    });
+
+    it('returns null for audio messages', () => {
+      const payload = buildUnsupportedPayload('audio');
+      expect(extractTextFromPayload(payload)).toBeNull();
+    });
+
+    it('returns null for status updates (no messages array)', () => {
+      const payload = JSON.stringify({
+        entry: [{
+          changes: [{
+            value: {
+              statuses: [{ id: 'wamid.123', status: 'delivered' }],
+            },
+          }],
+        }],
+      });
+      expect(extractTextFromPayload(payload)).toBeNull();
+    });
+  });
+
+  describe('malformed payloads', () => {
+    it('returns null for malformed JSON', () => {
+      expect(extractTextFromPayload('not valid json {')).toBeNull();
+    });
+
+    it('returns null for empty string', () => {
+      expect(extractTextFromPayload('')).toBeNull();
+    });
+
+    it('returns null for empty object', () => {
+      expect(extractTextFromPayload('{}')).toBeNull();
+    });
+  });
+});
+
+// ── Task 6.5: Property test for interactive reply extraction ────────
+
+describe('Feature: interactive-whatsapp-messages, Property 5: Interactive reply extraction returns the reply ID', () => {
+  /**
+   * **Validates: Requirements 4.1, 4.2**
+   *
+   * For any string replyId, a WhatsApp webhook payload containing
+   * msg.type: "interactive" with either button_reply.id or list_reply.id
+   * set to replyId, extractTextFromPayload SHALL return replyId.
+   */
+  it('button_reply: extractTextFromPayload returns the reply ID for any non-empty string', () => {
+    fc.assert(
+      fc.property(
+        fc.string({ minLength: 1, maxLength: 256 }),
+        (replyId) => {
+          const payload = buildButtonReplyPayload(replyId);
+          expect(extractTextFromPayload(payload)).toBe(replyId);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+
+  it('list_reply: extractTextFromPayload returns the reply ID for any non-empty string', () => {
+    fc.assert(
+      fc.property(
+        fc.string({ minLength: 1, maxLength: 200 }),
+        (replyId) => {
+          const payload = buildListReplyPayload(replyId);
+          expect(extractTextFromPayload(payload)).toBe(replyId);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+});
+
+// ── Task 6.6: Property test for text extraction backward compatibility ──
+
+describe('Feature: interactive-whatsapp-messages, Property 6: Text message extraction backward compatibility', () => {
+  /**
+   * **Validates: Requirements 4.3**
+   *
+   * For any non-empty string bodyText, a WhatsApp webhook payload containing
+   * msg.type: "text" with msg.text.body set to bodyText, extractTextFromPayload
+   * SHALL return bodyText.
+   */
+  it('extractTextFromPayload returns the text body for any non-empty string', () => {
+    fc.assert(
+      fc.property(
+        fc.string({ minLength: 1, maxLength: 1000 }),
+        (bodyText) => {
+          const payload = buildTextWebhookPayload(bodyText);
+          expect(extractTextFromPayload(payload)).toBe(bodyText);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+});
+
+// ── Task 6.7: Property test for unsupported message types ───────────
+
+describe('Feature: interactive-whatsapp-messages, Property 7: Unsupported message types return null', () => {
+  /**
+   * **Validates: Requirements 4.4**
+   *
+   * For any WhatsApp webhook payload where msg.type is not "text" and not
+   * "interactive", extractTextFromPayload SHALL return null.
+   */
+  it('extractTextFromPayload returns null for any unsupported message type', () => {
+    fc.assert(
+      fc.property(
+        fc.string({ minLength: 1, maxLength: 50 }).filter(
+          (s) => s !== 'text' && s !== 'interactive',
+        ),
+        (msgType) => {
+          const payload = buildUnsupportedPayload(msgType);
+          expect(extractTextFromPayload(payload)).toBeNull();
+        },
+      ),
+      { numRuns: 100 },
+    );
   });
 });

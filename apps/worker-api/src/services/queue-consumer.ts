@@ -20,8 +20,8 @@ import { parseCommand } from './command-router';
 import type { ParsedCommand } from './command-router';
 import { findBindingByPhone } from './whatsapp-binding';
 import { getSession } from './checkin-session';
-import { startCheckin, processAnswer } from './checkin-flow';
-import type { CheckinFlowEnv } from './checkin-flow';
+import { startCheckin, processAnswer, textMessages } from './checkin-flow';
+import type { CheckinFlowEnv, OutboundMessage } from './checkin-flow';
 import {
   handleNoteCommand,
   handleTagConfirmation,
@@ -58,7 +58,7 @@ import {
 } from './tag-management';
 import type { TagManagementEnv } from './tag-management';
 import { processScheduledPrompt, recordInboundTimestamp } from './prompt-scheduler';
-import { sendMessages } from './whatsapp-sender';
+import { sendOutboundMessages } from './whatsapp-sender';
 import type { WhatsAppSenderEnv } from './whatsapp-sender';
 import { localDateToday, parseCheckinDate, isCheckinDateError, isFeatureEnabled } from '@symptom-tracker/shared';
 
@@ -86,12 +86,12 @@ interface ProcessingResult {
 async function replyToUser(
   env: WhatsAppSenderEnv,
   phone: string,
-  messages: string[],
+  messages: OutboundMessage[],
   messageId: string,
 ): Promise<void> {
   if (messages.length === 0) return;
 
-  const results = await sendMessages(env, phone, messages);
+  const results = await sendOutboundMessages(env, phone, messages);
   const failures = results.filter((r) => !r.success);
 
   if (failures.length > 0) {
@@ -111,20 +111,35 @@ async function replyToUser(
 /**
  * Extract the user's text from a raw WhatsApp webhook payload.
  *
- * Returns null when the payload does not contain a text message
+ * Returns null when the payload does not contain a recognised message
  * (e.g. delivery status updates, media messages, etc.).
+ *
+ * Handles:
+ * - Plain text messages (`msg.type === "text"`)
+ * - Interactive button replies (`msg.type === "interactive"` with `button_reply`)
+ * - Interactive list replies (`msg.type === "interactive"` with `list_reply`)
+ *
+ * Validates: Requirements 4.1, 4.2, 4.3, 4.4
  */
 export function extractTextFromPayload(rawBody: string): string | null {
   try {
     const payload = JSON.parse(rawBody);
-    const entry = payload?.entry?.[0];
-    const change = entry?.changes?.[0];
-    const messages = change?.value?.messages;
-    if (Array.isArray(messages) && messages.length > 0) {
-      const msg = messages[0];
-      if (msg.type === 'text' && typeof msg.text?.body === 'string') {
-        return msg.text.body;
-      }
+    const msg = payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    if (!msg) return null;
+
+    // Existing: plain text messages
+    if (msg.type === 'text' && typeof msg.text?.body === 'string') {
+      return msg.text.body;
+    }
+
+    // New: interactive button reply
+    if (msg.type === 'interactive' && msg.interactive?.button_reply?.id) {
+      return msg.interactive.button_reply.id;
+    }
+
+    // New: interactive list reply
+    if (msg.type === 'interactive' && msg.interactive?.list_reply?.id) {
+      return msg.interactive.list_reply.id;
     }
   } catch {
     // Malformed JSON — fall through to null
@@ -244,7 +259,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           msg: 'Check-in date validation failed',
         }),
       );
-      await replyToUser(env, phone, [dateResult.error], body.messageId);
+      await replyToUser(env, phone, textMessages([dateResult.error]), body.messageId);
       return;
     }
 
@@ -264,7 +279,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           error: err instanceof Error ? err.message : 'Unknown error',
         }),
       );
-      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
       return;
     }
     console.log(
@@ -295,7 +310,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           error: err instanceof Error ? err.message : 'Unknown error',
         }),
       );
-      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
       return;
     }
     console.log(
@@ -307,7 +322,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         saved: result.saved,
       }),
     );
-    await replyToUser(env, phone, result.messages, body.messageId);
+    await replyToUser(env, phone, textMessages(result.messages), body.messageId);
     return;
   }
 
@@ -325,7 +340,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           error: err instanceof Error ? err.message : 'Unknown error',
         }),
       );
-      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
       return;
     }
     console.log(
@@ -338,7 +353,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         saved: result.saved,
       }),
     );
-    await replyToUser(env, phone, result.messages, body.messageId);
+    await replyToUser(env, phone, textMessages(result.messages), body.messageId);
     return;
   }
 
@@ -359,7 +374,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
             error: err instanceof Error ? err.message : 'Unknown error',
           }),
         );
-        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
         return;
       }
       console.log(
@@ -371,7 +386,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           saved: result.saved,
         }),
       );
-      await replyToUser(env, phone, result.messages, body.messageId);
+      await replyToUser(env, phone, textMessages(result.messages), body.messageId);
       return;
     }
 
@@ -397,7 +412,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
             error: err instanceof Error ? err.message : 'Unknown error',
           }),
         );
-        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
         return;
       }
       console.log(
@@ -430,11 +445,11 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
               msg: 'Side-effect capture started after injection',
             }),
           );
-          await replyToUser(env, phone, seResult.messages, body.messageId);
+          await replyToUser(env, phone, textMessages(seResult.messages), body.messageId);
         }
       }
 
-      await replyToUser(env, phone, result.messages, body.messageId);
+      await replyToUser(env, phone, textMessages(result.messages), body.messageId);
       return;
     }
 
@@ -454,7 +469,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
             error: err instanceof Error ? err.message : 'Unknown error',
           }),
         );
-        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
         return;
       }
       console.log(
@@ -467,7 +482,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           savedCount: result.savedCount,
         }),
       );
-      await replyToUser(env, phone, result.messages, body.messageId);
+      await replyToUser(env, phone, textMessages(result.messages), body.messageId);
       return;
     }
 
@@ -487,7 +502,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
             error: err instanceof Error ? err.message : 'Unknown error',
           }),
         );
-        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
         return;
       }
       console.log(
@@ -500,7 +515,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           saved: result.saved,
         }),
       );
-      await replyToUser(env, phone, result.messages, body.messageId);
+      await replyToUser(env, phone, textMessages(result.messages), body.messageId);
       return;
     }
 
@@ -519,7 +534,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
             error: err instanceof Error ? err.message : 'Unknown error',
           }),
         );
-        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
         return;
       }
       console.log(
@@ -550,7 +565,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           error: err instanceof Error ? err.message : 'Unknown error',
         }),
       );
-      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
       return;
     }
     console.log(
@@ -562,7 +577,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         created: result.created,
       }),
     );
-    await replyToUser(env, phone, result.messages, body.messageId);
+    await replyToUser(env, phone, textMessages(result.messages), body.messageId);
     return;
   }
 
@@ -580,7 +595,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           error: err instanceof Error ? err.message : 'Unknown error',
         }),
       );
-      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
       return;
     }
     console.log(
@@ -591,7 +606,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         msg: 'Tags list command processed',
       }),
     );
-    await replyToUser(env, phone, result.messages, body.messageId);
+    await replyToUser(env, phone, textMessages(result.messages), body.messageId);
     return;
   }
 
@@ -611,7 +626,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
             error: err instanceof Error ? err.message : 'Unknown error',
           }),
         );
-        await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+        await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
         return;
       }
       console.log(
@@ -623,7 +638,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           saved: result.saved,
         }),
       );
-      await replyToUser(env, phone, result.messages, body.messageId);
+      await replyToUser(env, phone, textMessages(result.messages), body.messageId);
       return;
     }
 
@@ -647,7 +662,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           error: err instanceof Error ? err.message : 'Unknown error',
         }),
       );
-      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
       return;
     }
     console.log(
@@ -659,7 +674,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         saved: result.saved,
       }),
     );
-    await replyToUser(env, phone, result.messages, body.messageId);
+    await replyToUser(env, phone, textMessages(result.messages), body.messageId);
     return;
   }
 
@@ -683,7 +698,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
           error: err instanceof Error ? err.message : 'Unknown error',
         }),
       );
-      await replyToUser(env, phone, [WRITE_FAILURE_MESSAGE], body.messageId);
+      await replyToUser(env, phone, textMessages([WRITE_FAILURE_MESSAGE]), body.messageId);
       return;
     }
     console.log(
@@ -695,7 +710,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
         saved: result.saved,
       }),
     );
-    await replyToUser(env, phone, result.messages, body.messageId);
+    await replyToUser(env, phone, textMessages(result.messages), body.messageId);
     return;
   }
 
@@ -716,7 +731,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
       '*tags add <name>* — Create a custom tag',
       '*help* — Show this command list',
     ].join('\n');
-    await replyToUser(env, phone, [helpText], body.messageId);
+    await replyToUser(env, phone, textMessages([helpText]), body.messageId);
     return;
   }
 
@@ -743,7 +758,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
       statusText = `📊 *Status for ${today}:*\n⏳ Check-in in progress (${checkin.status}). Send *checkin* to resume.`;
     }
 
-    await replyToUser(env, phone, [statusText], body.messageId);
+    await replyToUser(env, phone, textMessages([statusText]), body.messageId);
     return;
   }
 
@@ -751,7 +766,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
     await replyToUser(
       env,
       phone,
-      ['📄 Monthly report generation is not yet available. Coming soon!'],
+      textMessages(['📄 Monthly report generation is not yet available. Coming soon!']),
       body.messageId,
     );
     return;
@@ -770,7 +785,7 @@ async function handleInboundMessage(body: InboundQueueMessage, env: Env): Promis
   await replyToUser(
     env,
     phone,
-    ['I didn\'t recognize that command. Send *help* to see available commands.'],
+    textMessages(['I didn\'t recognize that command. Send *help* to see available commands.']),
     body.messageId,
   );
 }

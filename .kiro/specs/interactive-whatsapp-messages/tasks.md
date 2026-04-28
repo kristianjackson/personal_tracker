@@ -93,40 +93,40 @@ Replace plain-text question prompts in the daily check-in flow with interactive 
     - Generate random `OutboundMessage` objects, build payloads via builders, extract body text and action metadata back, verify equivalence to original fields
     - **Validates: Requirements 7.6**
 
-- [~] 5. Checkpoint — Ensure all tests pass
+- [x] 5. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Update `queue-consumer.ts` for interactive message parsing and dispatch
-  - [~] 6.1 Extend `extractTextFromPayload` to handle interactive replies
+- [x] 6. Update `queue-consumer.ts` for interactive message parsing and dispatch
+  - [x] 6.1 Extend `extractTextFromPayload` to handle interactive replies
     - Add handling for `msg.type === "interactive"` with `msg.interactive.button_reply.id` (return the ID)
     - Add handling for `msg.type === "interactive"` with `msg.interactive.list_reply.id` (return the ID)
     - Preserve existing `msg.type === "text"` handling
     - Return `null` for unsupported message types
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
-  - [~] 6.2 Update `replyToUser` to accept `OutboundMessage[]`
+  - [x] 6.2 Update `replyToUser` to accept `OutboundMessage[]`
     - Change the `messages` parameter from `string[]` to `OutboundMessage[]`
     - Replace `sendMessages` call with `sendOutboundMessages`
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [~] 6.3 Update all `replyToUser` call sites in `queue-consumer.ts`
+  - [x] 6.3 Update all `replyToUser` call sites in `queue-consumer.ts`
     - Wrap plain string arrays (e.g. `[WRITE_FAILURE_MESSAGE]`, `[helpText]`, `[statusText]`) as `TextOutboundMessage` objects using the `textMessages()` helper
     - Update non-checkin flow result `.messages` references (note-capture, injection-flow, medication-event, etc.) to wrap their `string[]` results as `OutboundMessage[]`
     - _Requirements: 3.6, 5.1_
-  - [~] 6.4 Write unit tests for `extractTextFromPayload` interactive handling
+  - [x] 6.4 Write unit tests for `extractTextFromPayload` interactive handling
     - Test button_reply extraction returns the reply ID
     - Test list_reply extraction returns the reply ID
     - Test plain text extraction still works (backward compatibility)
     - Test unsupported types (image, audio, status) return null
     - Test malformed JSON returns null
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
-  - [~] 6.5 Write property test for interactive reply extraction
+  - [x] 6.5 Write property test for interactive reply extraction
     - **Property 5: Interactive reply extraction returns the reply ID**
     - Generate random reply ID strings, build interactive webhook payloads (both button_reply and list_reply), verify `extractTextFromPayload` returns the ID
     - **Validates: Requirements 4.1, 4.2**
-  - [~] 6.6 Write property test for text extraction backward compatibility
+  - [x] 6.6 Write property test for text extraction backward compatibility
     - **Property 6: Text message extraction backward compatibility**
     - Generate random non-empty text strings, build text webhook payloads, verify `extractTextFromPayload` returns the text
     - **Validates: Requirements 4.3**
-  - [~] 6.7 Write property test for unsupported message types
+  - [x] 6.7 Write property test for unsupported message types
     - **Property 7: Unsupported message types return null**
     - Generate random unsupported type strings (not `"text"` or `"interactive"`), build payloads, verify `extractTextFromPayload` returns null
     - **Validates: Requirements 4.4**
