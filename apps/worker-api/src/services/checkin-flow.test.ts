@@ -1056,3 +1056,51 @@ describe('Property 4: Ordinal questions produce list messages with correct scale
     );
   });
 });
+
+// ── Property 9: Interactive reply IDs accepted by existing parsers ──
+
+describe('Property 9: Interactive reply IDs are accepted by existing answer parsers', () => {
+  /**
+   * **Validates: Requirements 6.1, 6.2**
+   *
+   * For any ordinal scale value v in range [min, max],
+   * parseOrdinalAnswer(String(v), min, max) returns v.
+   * And for each structured reply ID in {"yes", "no", "partial"},
+   * parseStructuredAnswer(id) returns the corresponding numeric value (1, 0, 0.5).
+   * This ensures that the interactive reply IDs used as list row IDs and button IDs
+   * are valid inputs to the existing parsers.
+   */
+  it('parseOrdinalAnswer accepts any ordinal value in [min, max] as a string', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 5 }).chain((min) =>
+          fc.integer({ min, max: min + 9 }).map((max) => ({ min, max })),
+        ).chain(({ min, max }) =>
+          fc.integer({ min, max }).map((v) => ({ min, max, v })),
+        ),
+        ({ min, max, v }) => {
+          const result = parseOrdinalAnswer(String(v), min, max);
+          expect(result).toBe(v);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+
+  it('parseStructuredAnswer accepts "yes", "no", "partial" and returns 1, 0, 0.5', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(
+          { id: 'yes', expected: 1 },
+          { id: 'no', expected: 0 },
+          { id: 'partial', expected: 0.5 },
+        ),
+        ({ id, expected }) => {
+          const result = parseStructuredAnswer(id);
+          expect(result).toBe(expected);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+});

@@ -131,11 +131,11 @@ Replace plain-text question prompts in the daily check-in flow with interactive 
     - Generate random unsupported type strings (not `"text"` or `"interactive"`), build payloads, verify `extractTextFromPayload` returns null
     - **Validates: Requirements 4.4**
 
-- [ ] 7. Add `fast-check` dev dependency and write parser compatibility property test
-  - [~] 7.1 Add `fast-check` as a dev dependency in `apps/worker-api/package.json`
+- [x] 7. Add `fast-check` dev dependency and write parser compatibility property test
+  - [x] 7.1 Add `fast-check` as a dev dependency in `apps/worker-api/package.json`
     - Run `npm install --save-dev fast-check` in `apps/worker-api`
     - _Requirements: (testing infrastructure)_
-  - [~] 7.2 Write property test for parser compatibility with interactive reply IDs
+  - [x] 7.2 Write property test for parser compatibility with interactive reply IDs
     - **Property 9: Interactive reply IDs are accepted by existing answer parsers**
     - Generate random ordinal values in valid `[min, max]` ranges, verify `parseOrdinalAnswer(String(v), min, max)` returns `v`
     - Verify `parseStructuredAnswer` accepts `"yes"`, `"no"`, `"partial"` and returns `1`, `0`, `0.5` respectively
